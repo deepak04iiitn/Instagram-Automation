@@ -155,11 +155,35 @@ class AutomationController {
       );
       
       console.log('Uploading images to Google Drive (backup)...');
-      const driveResults = await this.googleDriveService.uploadImagesToDailyFolder(
-        imagePaths, 
-        post.topic, 
-        post._id.toString()
-      );
+      let driveResults = [];
+      try {
+        // Test connection first
+        const isConnected = await this.googleDriveService.testConnection();
+        if (isConnected) {
+          driveResults = await this.googleDriveService.uploadImagesToDailyFolder(
+            imagePaths, 
+            post.topic, 
+            post._id.toString()
+          );
+          console.log('Google Drive upload completed successfully');
+        } else {
+          console.log('Google Drive connection failed, skipping backup upload');
+          // Create empty results for consistency
+          driveResults = imagePaths.map(() => ({
+            fileId: null,
+            webViewLink: null,
+            webContentLink: null
+          }));
+        }
+      } catch (error) {
+        console.error('Google Drive upload failed:', error.message);
+        // Create empty results for consistency
+        driveResults = imagePaths.map(() => ({
+          fileId: null,
+          webViewLink: null,
+          webContentLink: null
+        }));
+      }
       
       // Update post with image information
       post.images = imagePaths.map((path, index) => ({
@@ -180,9 +204,15 @@ class AutomationController {
         instagramResult = await this.instagramService.postImages(imageUrls, post.content);
       } catch (error) {
         console.log('Cloudinary URLs failed, trying Google Drive URLs as fallback...');
-        // Fallback to Google Drive URLs
-        const driveUrls = driveResults.map(result => result.webContentLink);
-        instagramResult = await this.instagramService.postImages(driveUrls, post.content);
+        // Fallback to Google Drive URLs (only if we have valid results)
+        const validDriveResults = driveResults.filter(result => result && result.webContentLink);
+        if (validDriveResults.length > 0) {
+          const driveUrls = validDriveResults.map(result => result.webContentLink);
+          instagramResult = await this.instagramService.postImages(driveUrls, post.content);
+        } else {
+          console.error('No valid Google Drive URLs available for fallback');
+          throw new Error('Both Cloudinary and Google Drive uploads failed');
+        }
       }
       
       // Update post with Instagram information

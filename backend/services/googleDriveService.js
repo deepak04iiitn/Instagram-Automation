@@ -10,6 +10,12 @@ class GoogleDriveService {
     this.refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN;
     this.folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
     
+    // Validate required environment variables
+    if (!this.clientId || !this.clientSecret || !this.refreshToken || !this.folderId) {
+      console.warn('Google Drive configuration incomplete. Some environment variables are missing.');
+      console.warn('Required: GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET, GOOGLE_DRIVE_REFRESH_TOKEN, GOOGLE_DRIVE_FOLDER_ID');
+    }
+    
     this.oauth2Client = new google.auth.OAuth2(
       this.clientId,
       this.clientSecret,
@@ -24,6 +30,30 @@ class GoogleDriveService {
   }
 
   /**
+   * Test Google Drive connection
+   * @returns {Promise<boolean>} Connection status
+   */
+  async testConnection() {
+    try {
+      console.log('Testing Google Drive connection...');
+      const response = await this.drive.about.get({
+        fields: 'user,storageQuota'
+      });
+      console.log('Google Drive connection successful');
+      console.log('User:', response.data.user?.displayName);
+      console.log('Storage quota:', response.data.storageQuota);
+      return true;
+    } catch (error) {
+      console.error('Google Drive connection failed:', error);
+      console.error('This might be due to:');
+      console.error('1. Invalid refresh token');
+      console.error('2. Missing or incorrect credentials');
+      console.error('3. API not enabled');
+      return false;
+    }
+  }
+
+  /**
    * Upload image to Google Drive
    * @param {string} filePath - Local file path
    * @param {string} topic - Topic for folder organization
@@ -32,8 +62,17 @@ class GoogleDriveService {
    */
   async uploadImage(filePath, topic, postId) {
     try {
+      console.log(`Uploading to Google Drive: ${filePath}`);
+      
+      // Check if file exists
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`File does not exist: ${filePath}`);
+      }
+      
       const fileName = path.basename(filePath);
+      console.log(`Creating topic folder for: ${topic}`);
       const folderId = await this.getOrCreateTopicFolder(topic);
+      console.log(`Using folder ID: ${folderId}`);
       
       const fileMetadata = {
         name: fileName,
@@ -45,13 +84,17 @@ class GoogleDriveService {
         body: fs.createReadStream(filePath)
       };
 
+      console.log(`Uploading file: ${fileName} to folder: ${folderId}`);
       const response = await this.drive.files.create({
         resource: fileMetadata,
         media: media,
         fields: 'id, webViewLink, webContentLink'
       });
 
+      console.log(`File uploaded successfully. ID: ${response.data.id}`);
+
       // Make the file publicly accessible for Instagram
+      console.log(`Setting public permissions for file: ${response.data.id}`);
       await this.drive.permissions.create({
         fileId: response.data.id,
         resource: {
@@ -60,6 +103,7 @@ class GoogleDriveService {
         }
       });
 
+      console.log(`Upload completed for: ${fileName}`);
       return {
         success: true,
         fileId: response.data.id,
@@ -69,6 +113,11 @@ class GoogleDriveService {
       };
     } catch (error) {
       console.error('Error uploading to Google Drive:', error);
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        status: error.status
+      });
       throw new Error(`Failed to upload to Google Drive: ${error.message}`);
     }
   }
