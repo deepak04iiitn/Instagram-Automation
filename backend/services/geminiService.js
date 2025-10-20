@@ -23,7 +23,7 @@ class GeminiService {
       const response = await result.response;
       const content = response.text();
 
-      return this.formatContent(content);
+      return this.formatContent(this.stripPreamble(content));
     } catch (error) {
       console.error('Error generating content with Gemini:', error);
       throw new Error(`Failed to generate content: ${error.message}`);
@@ -38,74 +38,95 @@ class GeminiService {
   getPromptForTopic(topic) {
     const prompts = {
       'Coding question of the day': `
-        Create an engaging Instagram post about a coding question of the day. 
+        Create a concise, educational Instagram post body about a coding question of the day. 
         Include:
         - A challenging but solvable coding problem
         - Brief explanation of the approach
-        - Why this concept is important for developers
-        - Use emojis and hashtags appropriately
-        - Keep it concise but informative (max 2000 characters)
-        - Make it engaging for software developers and coding enthusiasts
+        - Why this concept matters
+        Constraints for the CONTENT BODY:
+        - Do NOT include emojis
+        - Do NOT include hashtags
+        - Do NOT include any bold/markdown formatting
+        - Keep under 2000 characters
+        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
       `,
       'Interview experience': `
-        Create an engaging Instagram post about interview experiences in tech.
+        Create a concise, educational Instagram post body about interview experiences in tech.
         Include:
-        - A real or realistic interview scenario
+        - A realistic scenario
         - Key lessons learned
         - Tips for handling similar situations
-        - Use emojis and hashtags appropriately
-        - Keep it concise but informative (max 2000 characters)
-        - Make it relatable for job seekers and developers
+        Constraints for the CONTENT BODY:
+        - Do NOT include emojis
+        - Do NOT include hashtags
+        - Do NOT include any bold/markdown formatting
+        - Keep under 2000 characters
+        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
       `,
       'UI Testing': `
-        Create an engaging Instagram post about UI Testing best practices.
+        Create a concise, educational Instagram post body about UI Testing best practices.
         Include:
-        - Practical UI testing tips
+        - Practical tips
         - Common pitfalls to avoid
-        - Tools or techniques mentioned
-        - Use emojis and hashtags appropriately
-        - Keep it concise but informative (max 2000 characters)
-        - Target QA engineers and developers
+        - Tools or techniques
+        Constraints for the CONTENT BODY:
+        - Do NOT include emojis
+        - Do NOT include hashtags
+        - Do NOT include any bold/markdown formatting
+        - Keep under 2000 characters
+        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
       `,
       'API Testing': `
-        Create an engaging Instagram post about API Testing.
+        Create a concise, educational Instagram post body about API Testing.
         Include:
-        - API testing strategies
-        - Common API testing challenges
-        - Tools or methods for effective API testing
-        - Use emojis and hashtags appropriately
-        - Keep it concise but informative (max 2000 characters)
-        - Target QA engineers and developers
+        - Strategies
+        - Common challenges
+        - Effective tools/methods
+        Constraints for the CONTENT BODY:
+        - Do NOT include emojis
+        - Do NOT include hashtags
+        - Do NOT include any bold/markdown formatting
+        - Keep under 2000 characters
+        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
       `,
       'Performance Testing': `
-        Create an engaging Instagram post about Performance Testing.
+        Create a concise, educational Instagram post body about Performance Testing.
         Include:
-        - Performance testing importance
-        - Key metrics to monitor
-        - Tools or techniques for performance testing
-        - Use emojis and hashtags appropriately
-        - Keep it concise but informative (max 2000 characters)
-        - Target QA engineers and performance engineers
+        - Why it matters
+        - Key metrics
+        - Useful tools/techniques
+        Constraints for the CONTENT BODY:
+        - Do NOT include emojis
+        - Do NOT include hashtags
+        - Do NOT include any bold/markdown formatting
+        - Keep under 2000 characters
+        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
       `,
       'SDET Tools': `
-        Create an engaging Instagram post about SDET (Software Development Engineer in Test) tools.
+        Create a concise, educational Instagram post body about SDET tools.
         Include:
-        - Popular SDET tools
-        - How these tools improve testing efficiency
-        - Brief comparison or recommendation
-        - Use emojis and hashtags appropriately
-        - Keep it concise but informative (max 2000 characters)
-        - Target SDETs and QA automation engineers
+        - Popular tools
+        - How they improve testing efficiency
+        - Brief recommendations
+        Constraints for the CONTENT BODY:
+        - Do NOT include emojis
+        - Do NOT include hashtags
+        - Do NOT include any bold/markdown formatting
+        - Keep under 2000 characters
+        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
       `,
       'AI in Testing': `
-        Create an engaging Instagram post about AI in Testing.
+        Create a concise, educational Instagram post body about AI in Testing.
         Include:
-        - How AI is revolutionizing testing
-        - AI-powered testing tools or techniques
-        - Future of AI in QA
-        - Use emojis and hashtags appropriately
-        - Keep it concise but informative (max 2000 characters)
-        - Target QA professionals and tech enthusiasts
+        - How AI is changing testing
+        - AI-powered tools or techniques
+        - The near future of AI in QA
+        Constraints for the CONTENT BODY:
+        - Do NOT include emojis
+        - Do NOT include hashtags
+        - Do NOT include any bold/markdown formatting
+        - Keep under 2000 characters
+        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
       `
     };
 
@@ -126,12 +147,79 @@ class GeminiService {
       formatted = formatted.substring(0, 2200) + '...';
     }
 
-    // Add some basic formatting if not present
-    if (!formatted.includes('#')) {
-      formatted += '\n\n#Tech #Coding #SoftwareDevelopment #Programming';
-    }
+    // Remove emojis
+    formatted = formatted.replace(/[\p{Extended_Pictographic}\p{Emoji}]/gu, '');
+    // Remove markdown bold/italics
+    formatted = formatted.replace(/[*_~`]+/g, '');
+    // Remove hashtags from content body
+    formatted = formatted.replace(/(^|\s)#\w+/g, '').trim();
 
     return formatted;
+  }
+
+  /**
+   * Remove any preface/intro lines (e.g., "Sure, here's...") from model output
+   */
+  stripPreamble(text) {
+    if (!text) return text;
+    let t = text.trim();
+    // Remove common prefaces up to first empty line or first bullet/heading
+    const lines = t.split(/\r?\n/);
+    let startIdx = 0;
+    while (startIdx < lines.length) {
+      const l = lines[startIdx].trim();
+      const looksLikePreamble = /^(sure|okay|here|alright|great|no problem|\w+:)\b/i.test(l) ||
+        /^\(?\*?output|content|post|body\)?\s*:/.test(l);
+      const looksLikeStructure = /^[-*•\d+\.)]|^#{1,6}\s|^\w/.test(l);
+      if (!l) { startIdx++; continue; }
+      if (looksLikePreamble && !/\w{1,}\s\w{1,}/.test(l)) { startIdx++; continue; }
+      if (looksLikePreamble && l.length < 80) { startIdx++; continue; }
+      // Stop stripping when we hit something that looks like real content
+      break;
+    }
+    t = lines.slice(startIdx).join('\n').trim();
+    return t;
+  }
+
+  /**
+   * Generate a clean caption and up to 10 related hashtags (no emojis)
+   * @param {string} topic
+   * @param {string} content
+   * @returns {Promise<string>} caption string containing caption + hashtags
+   */
+  async generateCaption(topic, content) {
+    const captionPrompt = `
+      Based on the following Instagram post body and topic, produce:
+      1) A single concise caption line (no emojis, no quotes), optimized for professional tech audience.
+      2) A second line with up to 10 highly relevant, popular hashtags (lowercase, no spaces, no punctuation except #), separated by single spaces.
+      Rules:
+      - Do NOT include emojis anywhere.
+      - Do NOT repeat the full content.
+      - Do NOT include bold/markdown formatting.
+      - Keep total under 300 characters if possible.
+
+      Topic: ${topic}
+      Content:
+      ${content}
+
+      Output format:
+      <caption line>
+      <hashtags line>
+    `;
+
+    const result = await this.model.generateContent(captionPrompt);
+    const response = await result.response;
+    const raw = response.text().trim();
+
+    // Normalize output: take first two non-empty lines
+    const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const captionLine = (lines[0] || '').replace(/["'“”]/g, '').trim();
+    let hashtagsLine = (lines[1] || '').trim();
+    // sanitize hashtags: keep only #words, max 10
+    const tags = (hashtagsLine.match(/#\w+/g) || []).slice(0, 10).map(t => t.toLowerCase());
+    hashtagsLine = tags.join(' ');
+
+    return hashtagsLine ? `${captionLine}\n${hashtagsLine}` : captionLine;
   }
 
   /**

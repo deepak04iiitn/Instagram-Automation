@@ -195,20 +195,24 @@ class AutomationController {
       }));
       await post.save();
       
+      // Build clean caption (no emojis in content, up to 10 hashtags)
+      const sanitizedContent = this.geminiService.formatContent(post.content);
+      const caption = await this.geminiService.generateCaption(post.topic, sanitizedContent);
+
       // Post to Instagram using Cloudinary URLs
       console.log('Posting to Instagram using Cloudinary URLs...');
       const imageUrls = cloudinaryResults.map(result => result.url);
       
       let instagramResult;
       try {
-        instagramResult = await this.instagramService.postImages(imageUrls, post.content);
+        instagramResult = await this.instagramService.postImages(imageUrls, caption);
       } catch (error) {
         console.log('Cloudinary URLs failed, trying Google Drive URLs as fallback...');
         // Fallback to Google Drive URLs (only if we have valid results)
         const validDriveResults = driveResults.filter(result => result && result.webContentLink);
         if (validDriveResults.length > 0) {
           const driveUrls = validDriveResults.map(result => result.webContentLink);
-          instagramResult = await this.instagramService.postImages(driveUrls, post.content);
+          instagramResult = await this.instagramService.postImages(driveUrls, caption);
         } else {
           console.error('No valid Google Drive URLs available for fallback');
           throw new Error('Both Cloudinary and Google Drive uploads failed');
