@@ -3,16 +3,8 @@ import mongoose from 'mongoose';
 const postSchema = new mongoose.Schema({
   topic: {
     type: String,
-    required: true,
-    enum: [
-      'Coding question of the day',
-      'Interview experience',
-      'UI Testing',
-      'API Testing',
-      'Performance Testing',
-      'SDET Tools',
-      'AI in Testing'
-    ]
+    required: true
+    // Removed enum restriction to allow dynamic prompts
   },
   content: {
     type: String,
@@ -38,6 +30,8 @@ const postSchema = new mongoose.Schema({
   },
   images: [{
     localPath: String,
+    cloudinaryId: String,
+    cloudinaryUrl: String,
     googleDriveId: String,
     googleDriveUrl: String
   }],

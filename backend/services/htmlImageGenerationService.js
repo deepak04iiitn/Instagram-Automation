@@ -27,11 +27,14 @@ class HtmlImageGenerationService {
   /**
    * Generate images from text content using HTML template
    * @param {string} content - Text content to convert to images
-   * @param {string} topic - Topic for styling
+   * @param {string} topic - Topic for styling (short, 4 words max from Gemini)
    * @returns {Promise<Array>} Array of generated image paths
    */
   async generateImages(content, topic) {
     try {
+      // Topic is already short (max 4 words) from Gemini, just clean for filename
+      const filenameTopic = topic.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      
       const { chunks } = await this.paginateContentByMeasuring(content, topic);
       const imagePaths = [];
 
@@ -50,7 +53,9 @@ class HtmlImageGenerationService {
           const htmlContent = this.generateHtmlTemplate(chunks[i], topic, i + 1, chunks.length);
           await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-          const filename = `post_${topic.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}_${i + 1}.png`;
+          // Use clean topic and timestamp for filename
+          const timestamp = Date.now();
+          const filename = `post_${filenameTopic}_${timestamp}_${i + 1}.png`;
           const filepath = path.join(this.outputDir, filename);
 
           await page.screenshot({
@@ -216,7 +221,7 @@ class HtmlImageGenerationService {
   /**
    * Create an image from HTML template
    * @param {string} text - Text content
-   * @param {string} topic - Topic for styling
+   * @param {string} topic - Topic for styling (short, 4 words max)
    * @param {number} pageNumber - Current page number
    * @param {number} totalPages - Total number of pages
    * @returns {Promise<string>} Path to generated image
@@ -239,8 +244,10 @@ class HtmlImageGenerationService {
       // Set the HTML content
       await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
-      // Generate image
-      const filename = `post_${topic.replace(/\s+/g, '_').toLowerCase()}_${Date.now()}_${pageNumber}.png`;
+      // Generate image with clean filename
+      const filenameTopic = topic.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      const timestamp = Date.now();
+      const filename = `post_${filenameTopic}_${timestamp}_${pageNumber}.png`;
       const filepath = path.join(this.outputDir, filename);
       
       await page.screenshot({
@@ -259,7 +266,7 @@ class HtmlImageGenerationService {
   /**
    * Generate HTML template for the image
    * @param {string} text - Text content
-   * @param {string} topic - Topic for styling
+   * @param {string} topic - Topic for styling (short, 4 words max from Gemini)
    * @param {number} pageNumber - Current page number
    * @param {number} totalPages - Total number of pages
    * @returns {string} HTML content
@@ -273,7 +280,7 @@ class HtmlImageGenerationService {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${topic}</title>
+    <title>SDET Interview Prep</title>
     <style>
         * {
             margin: 0;
@@ -331,18 +338,18 @@ class HtmlImageGenerationService {
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0.35; /* stronger visibility on dark theme */
+            opacity: 0.35;
             pointer-events: none;
-            mix-blend-mode: normal; /* use original logo colors */
+            mix-blend-mode: normal;
             z-index: 1;
         }
 
         .watermark img {
             width: 100%;
             height: 100%;
-            object-fit: cover; /* cover entire canvas */
-            transform: scale(1.25); /* enlarge beyond canvas to ensure full coverage */
-            filter: brightness(0.28) contrast(1.15) drop-shadow(0 8px 28px rgba(0,0,0,0.45)); /* darker, crisper */
+            object-fit: cover;
+            transform: scale(1.25);
+            filter: brightness(0.28) contrast(1.15) drop-shadow(0 8px 28px rgba(0,0,0,0.45));
         }
 
         .container {
@@ -351,13 +358,13 @@ class HtmlImageGenerationService {
             display: flex;
             flex-direction: column;
             position: relative;
-            z-index: 2; /* keep content above watermark */
+            z-index: 2;
         }
         
         .header {
             display: flex;
             align-items: center;
-            justify-content: space-between; /* push actions to right */
+            justify-content: space-between;
             padding: 20px 40px;
             background: rgba(2,6,23,0.35);
             border-bottom: 1px solid rgba(148,163,184,0.18);
@@ -410,8 +417,8 @@ class HtmlImageGenerationService {
             margin-right: 15px;
             border-radius: 8px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-            background: #ffffff; /* white box */
-            padding: 6px; /* inner padding for white box */
+            background: #ffffff;
+            padding: 6px;
             border: 1px solid rgba(0,0,0,0.06);
             object-fit: contain;
         }
@@ -426,7 +433,7 @@ class HtmlImageGenerationService {
         
         .main-content {
             flex: 1;
-            padding: 28px 40px 28px 40px; /* equal top/bottom spacing */
+            padding: 28px 40px 28px 40px;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
@@ -435,12 +442,12 @@ class HtmlImageGenerationService {
         }
         
         .topic-title {
-            font-size: 44px;
+            font-size: 38px;
             font-weight: 900;
             color: #f8fafc;
-            margin: 0 0 18px 0; /* tighten space below header and before content */
+            margin: 0 0 18px 0;
             text-align: center;
-            line-height: 1.15;
+            line-height: 1.2;
             letter-spacing: -0.02em;
             text-shadow: 0 2px 12px rgba(0,0,0,0.35);
             background: linear-gradient(90deg, #93c5fd 0%, #86efac 30%, #c4b5fd 75%);
@@ -451,13 +458,13 @@ class HtmlImageGenerationService {
         
         .content-card {
             position: relative;
-            background: rgba(2,6,23,0.0); /* use opaque shield via ::before to fully mask */
+            background: rgba(2,6,23,0.0);
             border: 1px solid rgba(148,163,184,0.22);
             box-shadow: 0 12px 44px rgba(0,0,0,0.45);
             border-radius: 18px;
             padding: 28px 28px 32px 28px;
             backdrop-filter: blur(14px) saturate(120%);
-            z-index: 3; /* ensure above watermark */
+            z-index: 3;
             overflow: hidden;
         }
 
@@ -466,14 +473,14 @@ class HtmlImageGenerationService {
             position: absolute;
             inset: 0;
             border-radius: 18px;
-            background: rgba(2,6,23,0.92); /* fully shield text from background logo */
+            background: rgba(2,6,23,0.92);
             z-index: -1;
         }
 
         .content-text {
-            font-size: 30px; /* increased for readability */
+            font-size: 30px;
             line-height: 1.55;
-            color: #f1f5f9; /* brighter */
+            color: #f1f5f9;
             text-align: left;
             white-space: pre-line;
             max-height: 650px;
@@ -537,7 +544,7 @@ class HtmlImageGenerationService {
             flex-direction: column;
             justify-content: flex-start;
             max-height: 750px;
-            padding-top: 0; /* remove extra top padding to reduce header-topic gap */
+            padding-top: 0;
             gap: 12px;
         }
         
@@ -576,7 +583,7 @@ class HtmlImageGenerationService {
         <!-- Main Content Area -->
         <div class="main-content">
             <div class="content-wrapper">
-                <h1 class="topic-title">${topic}</h1>
+                <h1 class="topic-title">${this.escapeHtml(topic)}</h1>
                 <div class="content-card">
                     <div class="content-text">${this.escapeHtml(text)}</div>
                 </div>

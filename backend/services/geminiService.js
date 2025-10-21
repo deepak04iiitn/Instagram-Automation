@@ -8,129 +8,80 @@ class GeminiService {
     }
     this.genAI = new GoogleGenerativeAI(this.apiKey);
     this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    
+    // Standard instruction to prepend to all prompts
+    this.standardInstruction = `IMPORTANT INSTRUCTIONS:
+- Do NOT include any emojis in your response
+- Do NOT use bold, italic, or any markdown formatting
+- Do NOT include any welcoming phrases, preambles, or introductory sentences
+- Start directly with the actual content
+- Keep the response concise and under 2000 characters
+- Output ONLY the main content, nothing else
+
+USER REQUEST: `;
   }
 
   /**
-   * Generate content based on the topic for the day
-   * @param {string} topic - The topic for the day
-   * @returns {Promise<string>} Generated content
+   * Generate a short topic (max 4 words) from a prompt
+   * @param {string} prompt - The full prompt text
+   * @returns {Promise<string>} Short topic (max 4 words)
    */
-  async generateContent(topic) {
+  async generateShortTopic(prompt) {
     try {
-      const prompt = this.getPromptForTopic(topic);
-      
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const content = response.text();
+      const topicPrompt = `Based on this request, generate a short, crisp topic name of MAXIMUM 4 words that captures the essence. Output ONLY the topic, nothing else.
 
-      return this.formatContent(this.stripPreamble(content));
+Request: ${prompt}
+
+Examples:
+- "Give one real-world SDET interview question on Java" → "Java SDET Question"
+- "Explain how to design a hybrid framework" → "Hybrid Framework Design"
+- "Share one flaky test debugging example" → "Flaky Test Debug"
+
+Topic:`;
+
+      const result = await this.model.generateContent(topicPrompt);
+      const response = await result.response;
+      const topic = response.text().trim();
+      
+      // Ensure max 4 words
+      const words = topic.split(/\s+/);
+      const shortTopic = words.slice(0, 4).join(' ');
+      
+      return shortTopic || 'SDET Interview Prep';
     } catch (error) {
-      console.error('Error generating content with Gemini:', error);
-      throw new Error(`Failed to generate content: ${error.message}`);
+      console.error('Error generating short topic:', error);
+      return 'SDET Interview Prep'; // Fallback
     }
   }
 
   /**
-   * Get the appropriate prompt based on the topic
-   * @param {string} topic - The topic for the day
-   * @returns {string} Formatted prompt
+   * Generate content from a prompt
+   * @param {string} userPrompt - The user's prompt/question
+   * @returns {Promise<Object>} Object containing topic and content
    */
-  getPromptForTopic(topic) {
-    const prompts = {
-      'Coding question of the day': `
-        Create a concise, educational Instagram post body about a coding question of the day. 
-        Include:
-        - A challenging but solvable coding problem
-        - Brief explanation of the approach
-        - Why this concept matters
-        Constraints for the CONTENT BODY:
-        - Do NOT include emojis
-        - Do NOT include hashtags
-        - Do NOT include any bold/markdown formatting
-        - Keep under 2000 characters
-        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
-      `,
-      'Interview experience': `
-        Create a concise, educational Instagram post body about interview experiences in tech.
-        Include:
-        - A realistic scenario
-        - Key lessons learned
-        - Tips for handling similar situations
-        Constraints for the CONTENT BODY:
-        - Do NOT include emojis
-        - Do NOT include hashtags
-        - Do NOT include any bold/markdown formatting
-        - Keep under 2000 characters
-        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
-      `,
-      'UI Testing': `
-        Create a concise, educational Instagram post body about UI Testing best practices.
-        Include:
-        - Practical tips
-        - Common pitfalls to avoid
-        - Tools or techniques
-        Constraints for the CONTENT BODY:
-        - Do NOT include emojis
-        - Do NOT include hashtags
-        - Do NOT include any bold/markdown formatting
-        - Keep under 2000 characters
-        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
-      `,
-      'API Testing': `
-        Create a concise, educational Instagram post body about API Testing.
-        Include:
-        - Strategies
-        - Common challenges
-        - Effective tools/methods
-        Constraints for the CONTENT BODY:
-        - Do NOT include emojis
-        - Do NOT include hashtags
-        - Do NOT include any bold/markdown formatting
-        - Keep under 2000 characters
-        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
-      `,
-      'Performance Testing': `
-        Create a concise, educational Instagram post body about Performance Testing.
-        Include:
-        - Why it matters
-        - Key metrics
-        - Useful tools/techniques
-        Constraints for the CONTENT BODY:
-        - Do NOT include emojis
-        - Do NOT include hashtags
-        - Do NOT include any bold/markdown formatting
-        - Keep under 2000 characters
-        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
-      `,
-      'SDET Tools': `
-        Create a concise, educational Instagram post body about SDET tools.
-        Include:
-        - Popular tools
-        - How they improve testing efficiency
-        - Brief recommendations
-        Constraints for the CONTENT BODY:
-        - Do NOT include emojis
-        - Do NOT include hashtags
-        - Do NOT include any bold/markdown formatting
-        - Keep under 2000 characters
-        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
-      `,
-      'AI in Testing': `
-        Create a concise, educational Instagram post body about AI in Testing.
-        Include:
-        - How AI is changing testing
-        - AI-powered tools or techniques
-        - The near future of AI in QA
-        Constraints for the CONTENT BODY:
-        - Do NOT include emojis
-        - Do NOT include hashtags
-        - Do NOT include any bold/markdown formatting
-        - Keep under 2000 characters
-        Output strictly the content body only. Do NOT add any preface, intro, or explanation.
-      `
-    };
+  async generateContentFromPrompt(userPrompt) {
+    try {
+      // First, generate a short topic
+      console.log('Generating short topic...');
+      const shortTopic = await this.generateShortTopic(userPrompt);
+      console.log(`Generated topic: ${shortTopic}`);
+      
+      // Then generate the content
+      console.log('Generating content...');
+      const fullPrompt = this.standardInstruction + userPrompt;
+      
+      const result = await this.model.generateContent(fullPrompt);
+      const response = await result.response;
+      const content = response.text();
 
-    return prompts[topic] || prompts['Coding question of the day'];
+      return {
+        topic: shortTopic,
+        content: this.formatContent(this.stripPreamble(content))
+      };
+    } catch (error) {
+      console.error('Error generating content with Gemini:', error);
+      throw new Error(`Failed to generate content: ${error.message}`);
+    }
   }
 
   /**
@@ -139,7 +90,6 @@ class GeminiService {
    * @returns {string} Formatted content
    */
   formatContent(content) {
-    // Clean up the content
     let formatted = content.trim();
     
     // Ensure it doesn't exceed Instagram's character limit
@@ -149,8 +99,10 @@ class GeminiService {
 
     // Remove emojis
     formatted = formatted.replace(/[\p{Extended_Pictographic}\p{Emoji}]/gu, '');
+    
     // Remove markdown bold/italics
     formatted = formatted.replace(/[*_~`]+/g, '');
+    
     // Remove hashtags from content body
     formatted = formatted.replace(/(^|\s)#\w+/g, '').trim();
 
@@ -158,50 +110,66 @@ class GeminiService {
   }
 
   /**
-   * Remove any preface/intro lines (e.g., "Sure, here's...") from model output
+   * Remove any preface/intro lines from model output
+   * @param {string} text - Text to clean
+   * @returns {string} Cleaned text
    */
   stripPreamble(text) {
     if (!text) return text;
+    
     let t = text.trim();
-    // Remove common prefaces up to first empty line or first bullet/heading
     const lines = t.split(/\r?\n/);
     let startIdx = 0;
+    
     while (startIdx < lines.length) {
       const l = lines[startIdx].trim();
-      const looksLikePreamble = /^(sure|okay|here|alright|great|no problem|\w+:)\b/i.test(l) ||
-        /^\(?\*?output|content|post|body\)?\s*:/.test(l);
-      const looksLikeStructure = /^[-*•\d+\.)]|^#{1,6}\s|^\w/.test(l);
-      if (!l) { startIdx++; continue; }
-      if (looksLikePreamble && !/\w{1,}\s\w{1,}/.test(l)) { startIdx++; continue; }
-      if (looksLikePreamble && l.length < 80) { startIdx++; continue; }
-      // Stop stripping when we hit something that looks like real content
+      
+      // Skip empty lines
+      if (!l) { 
+        startIdx++; 
+        continue; 
+      }
+      
+      // Check if line looks like a preamble
+      const looksLikePreamble = /^(sure|okay|here|alright|great|no problem|here's|here is|\w+:)\b/i.test(l) ||
+        /^\(?\*?output|content|post|body|response\)?\s*:/.test(l);
+      
+      // If it's a short preamble line, skip it
+      if (looksLikePreamble && l.length < 80) { 
+        startIdx++; 
+        continue; 
+      }
+      
+      // Stop stripping when we hit real content
       break;
     }
+    
     t = lines.slice(startIdx).join('\n').trim();
     return t;
   }
 
   /**
    * Generate a clean caption and up to 10 related hashtags (no emojis)
-   * @param {string} topic
-   * @param {string} content
-   * @returns {Promise<string>} caption string containing caption + hashtags
+   * @param {string} topic - General topic
+   * @param {string} content - Post content
+   * @returns {Promise<string>} Caption with hashtags
    */
   async generateCaption(topic, content) {
     const captionPrompt = `
-      Based on the following Instagram post body and topic, produce:
-      1) A single concise caption line (no emojis, no quotes), optimized for professional tech audience.
-      2) A second line with up to 10 highly relevant, popular hashtags (lowercase, no spaces, no punctuation except #), separated by single spaces.
+      Based on the following Instagram post body and topic, create:
+      1) A single concise caption line (no emojis, no quotes), optimized for professional tech audience
+      2) A second line with up to 10 highly relevant, popular hashtags (lowercase, no spaces, no punctuation except #), separated by single spaces
+      
       Rules:
-      - Do NOT include emojis anywhere.
-      - Do NOT repeat the full content.
-      - Do NOT include bold/markdown formatting.
-      - Keep total under 300 characters if possible.
-
+      - Do NOT include emojis anywhere
+      - Do NOT repeat the full content
+      - Do NOT include bold/markdown formatting
+      - Keep total under 300 characters if possible
+      
       Topic: ${topic}
       Content:
-      ${content}
-
+      ${content.substring(0, 500)}
+      
       Output format:
       <caption line>
       <hashtags line>
@@ -213,9 +181,10 @@ class GeminiService {
 
     // Normalize output: take first two non-empty lines
     const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const captionLine = (lines[0] || '').replace(/["'“”]/g, '').trim();
+    const captionLine = (lines[0] || '').replace(/["'""]/g, '').trim();
     let hashtagsLine = (lines[1] || '').trim();
-    // sanitize hashtags: keep only #words, max 10
+    
+    // Sanitize hashtags: keep only #words, max 10
     const tags = (hashtagsLine.match(/#\w+/g) || []).slice(0, 10).map(t => t.toLowerCase());
     hashtagsLine = tags.join(' ');
 
@@ -223,32 +192,33 @@ class GeminiService {
   }
 
   /**
-   * Generate retry content with a different approach
-   * @param {string} topic - The topic for the day
+   * Generate retry content with a different approach (kept for compatibility)
+   * @param {string} topic - The topic
    * @param {string} originalContent - The original content that was rejected
-   * @returns {Promise<string>} New generated content
+   * @returns {Promise<Object>} Object containing new topic and content
    */
   async generateRetryContent(topic, originalContent) {
     try {
-      const retryPrompt = `
-        The previous content for "${topic}" was not approved. Please generate a completely different approach:
-        
-        Original content: ${originalContent}
-        
-        Create a fresh, engaging Instagram post about "${topic}" with:
-        - A different angle or perspective
-        - New examples or scenarios
-        - Different style or tone
-        - Use emojis and hashtags appropriately
-        - Keep it concise but informative (max 2000 characters)
-        - Make it unique and engaging
-      `;
+      const retryPrompt = `The previous content was not approved. Generate completely different content with a fresh approach.
 
-      const result = await this.model.generateContent(retryPrompt);
+Previous content to avoid repeating:
+${originalContent.substring(0, 300)}
+
+Create fresh, unique content with a different angle, different examples, and different structure.`;
+
+      // Generate new short topic
+      const shortTopic = await this.generateShortTopic(retryPrompt);
+      
+      // Generate new content
+      const fullPrompt = this.standardInstruction + retryPrompt;
+      const result = await this.model.generateContent(fullPrompt);
       const response = await result.response;
       const content = response.text();
 
-      return this.formatContent(content);
+      return {
+        topic: shortTopic,
+        content: this.formatContent(this.stripPreamble(content))
+      };
     } catch (error) {
       console.error('Error generating retry content with Gemini:', error);
       throw new Error(`Failed to generate retry content: ${error.message}`);
