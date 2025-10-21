@@ -1,14 +1,6 @@
 import React, { useState } from 'react';
-import { 
-  Play, 
-  Pause, 
-  RefreshCw, 
-  Trash2, 
-  Settings, 
-  AlertTriangle,
-  CheckCircle,
-  Clock
-} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Play, Pause, RefreshCw, Trash2, Settings, AlertTriangle, CheckCircle, Clock, X } from 'lucide-react';
 import { automationAPI } from '../services/api';
 import { cn } from '../utils/cn';
 
@@ -37,34 +29,6 @@ const ControlPanel = ({ onRunAutomation, loading }) => {
     }
   };
 
-  const handleRunNow = () => {
-    handleAction(
-      'run',
-      onRunAutomation,
-      'Automation started successfully'
-    );
-  };
-
-  const handleCleanupImages = () => {
-    handleAction(
-      'cleanupImages',
-      automationAPI.cleanupImages,
-      'Image cleanup completed'
-    );
-  };
-
-  const handleCleanupPosts = () => {
-    handleAction(
-      'cleanupPosts',
-      automationAPI.cleanupPosts,
-      'Post cleanup completed'
-    );
-  };
-
-  const handleRefresh = () => {
-    window.location.reload();
-  };
-
   const actions = [
     {
       id: 'run',
@@ -72,7 +36,7 @@ const ControlPanel = ({ onRunAutomation, loading }) => {
       description: 'Manually trigger the automation process',
       icon: Play,
       color: 'blue',
-      action: handleRunNow,
+      action: () => handleAction('run', onRunAutomation, 'Automation started successfully'),
       loading: loading || actionLoading.run,
     },
     {
@@ -81,7 +45,7 @@ const ControlPanel = ({ onRunAutomation, loading }) => {
       description: 'Reload all dashboard data',
       icon: RefreshCw,
       color: 'gray',
-      action: handleRefresh,
+      action: () => window.location.reload(),
       loading: false,
     },
     {
@@ -90,7 +54,7 @@ const ControlPanel = ({ onRunAutomation, loading }) => {
       description: 'Remove old generated images',
       icon: Trash2,
       color: 'orange',
-      action: handleCleanupImages,
+      action: () => handleAction('cleanupImages', automationAPI.cleanupImages, 'Image cleanup completed'),
       loading: actionLoading.cleanupImages,
     },
     {
@@ -99,135 +63,139 @@ const ControlPanel = ({ onRunAutomation, loading }) => {
       description: 'Remove old declined/failed posts',
       icon: Trash2,
       color: 'red',
-      action: handleCleanupPosts,
+      action: () => handleAction('cleanupPosts', automationAPI.cleanupPosts, 'Post cleanup completed'),
       loading: actionLoading.cleanupPosts,
     },
   ];
 
-  const getIconColor = (color) => {
-    const colors = {
-      blue: 'text-blue-600',
-      gray: 'text-gray-600',
-      orange: 'text-orange-600',
-      red: 'text-red-600',
+  const getGradientColor = (color) => {
+    const gradients = {
+      blue: 'from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700',
+      gray: 'from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700',
+      orange: 'from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700',
+      red: 'from-red-500 to-red-600 hover:from-red-600 hover:to-red-700',
     };
-    return colors[color] || 'text-gray-600';
+    return gradients[color] || gradients.gray;
   };
 
-  const getButtonColor = (color) => {
-    const colors = {
-      blue: 'bg-blue-600 hover:bg-blue-700 text-white',
-      gray: 'bg-gray-600 hover:bg-gray-700 text-white',
-      orange: 'bg-orange-600 hover:bg-orange-700 text-white',
-      red: 'bg-red-600 hover:bg-red-700 text-white',
-    };
-    return colors[color] || 'bg-gray-600 hover:bg-gray-700 text-white';
+  const notificationIcons = {
+    success: CheckCircle,
+    error: AlertTriangle,
+    info: Clock,
+  };
+
+  const notificationColors = {
+    success: 'bg-green-50 border-green-200 text-green-800',
+    error: 'bg-red-50 border-red-200 text-red-800',
+    info: 'bg-blue-50 border-blue-200 text-blue-800',
   };
 
   return (
-    <div className="space-y-6">
-      {/* Control Panel */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Control Panel</h3>
-        </div>
-        
-        <div className="p-6 space-y-4">
-          {actions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <div key={action.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <div className={cn(
-                    'p-2 rounded-lg',
-                    action.color === 'blue' && 'bg-blue-50',
-                    action.color === 'gray' && 'bg-gray-50',
-                    action.color === 'orange' && 'bg-orange-50',
-                    action.color === 'red' && 'bg-red-50',
-                  )}>
-                    <Icon className={cn('h-5 w-5', getIconColor(action.color))} />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-900">{action.title}</h4>
-                    <p className="text-xs text-gray-500">{action.description}</p>
-                  </div>
-                </div>
-                
-                <button
-                  onClick={action.action}
-                  disabled={action.loading}
-                  className={cn(
-                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
-                    getButtonColor(action.color)
-                  )}
-                >
-                  {action.loading ? (
-                    <div className="flex items-center space-x-2">
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      <span>Running...</span>
-                    </div>
-                  ) : (
-                    action.title
-                  )}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* System Status */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">System Status</h3>
-        </div>
-        
-        <div className="p-6 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Scheduler</span>
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-green-600">Running</span>
+    <div className="relative">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 lg:p-8"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
+              <Settings className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Control Panel</h2>
+              <p className="text-sm text-gray-500">Manage automation tasks</p>
             </div>
           </div>
-          
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Next Run</span>
-            <span className="text-sm text-gray-900">10:00 AM Daily</span>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Last Check</span>
-            <span className="text-sm text-gray-900">
-              {new Date().toLocaleTimeString()}
-            </span>
-          </div>
         </div>
-      </div>
 
-      {/* Notifications */}
-      {notifications.length > 0 && (
-        <div className="space-y-2">
-          {notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={cn(
-                'p-3 rounded-lg text-sm',
-                notification.type === 'success' && 'bg-green-50 text-green-800 border border-green-200',
-                notification.type === 'error' && 'bg-red-50 text-red-800 border border-red-200',
-                notification.type === 'info' && 'bg-blue-50 text-blue-800 border border-blue-200'
-              )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {actions.map((action, index) => (
+            <motion.div
+              key={action.id}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.1 }}
+              whileHover={{ scale: 1.03 }}
+              className="group"
             >
-              <div className="flex items-center space-x-2">
-                {notification.type === 'success' && <CheckCircle className="h-4 w-4" />}
-                {notification.type === 'error' && <AlertTriangle className="h-4 w-4" />}
-                {notification.type === 'info' && <Clock className="h-4 w-4" />}
-                <span>{notification.message}</span>
-              </div>
-            </div>
+              <motion.button
+                onClick={action.action}
+                disabled={action.loading}
+                className={cn(
+                  'w-full p-6 rounded-xl bg-gradient-to-br text-white shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden',
+                  getGradientColor(action.color)
+                )}
+                whileTap={{ scale: 0.97 }}
+              >
+                {/* Animated Background */}
+                <motion.div
+                  className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity"
+                />
+
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-3">
+                    <action.icon className={cn(
+                      'h-6 w-6',
+                      action.loading && 'animate-spin'
+                    )} />
+                    {action.loading && (
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="h-4 w-4 border-2 border-white border-t-transparent rounded-full"
+                      />
+                    )}
+                  </div>
+                  <h3 className="text-sm font-semibold mb-1 text-left">{action.title}</h3>
+                  <p className="text-xs opacity-90 text-left">{action.description}</p>
+                </div>
+
+                {/* Shine Effect */}
+                <motion.div
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-0 group-hover:opacity-20"
+                  initial={{ x: '-100%' }}
+                  whileHover={{ x: '100%' }}
+                  transition={{ duration: 0.6 }}
+                />
+              </motion.button>
+            </motion.div>
           ))}
         </div>
-      )}
+      </motion.div>
+
+      {/* Notifications */}
+      <div className="fixed bottom-6 right-6 z-50 space-y-2 max-w-md">
+        <AnimatePresence>
+          {notifications.map((notification) => {
+            const NotifIcon = notificationIcons[notification.type];
+            return (
+              <motion.div
+                key={notification.id}
+                initial={{ opacity: 0, y: 50, scale: 0.8 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 100, scale: 0.8 }}
+                transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                className={cn(
+                  'flex items-center space-x-3 p-4 rounded-xl border shadow-lg backdrop-blur-sm',
+                  notificationColors[notification.type]
+                )}
+              >
+                <NotifIcon className="h-5 w-5 flex-shrink-0" />
+                <p className="text-sm font-medium flex-1">{notification.message}</p>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                  className="p-1 hover:bg-black/10 rounded-lg transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </motion.button>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </div>
     </div>
   );
 };

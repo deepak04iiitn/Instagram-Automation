@@ -456,6 +456,8 @@ class AutomationController {
       const today = moment().startOf('day').toDate();
       const tomorrow = moment().add(1, 'day').startOf('day').toDate();
       
+      // Get all posts for statistics
+      const allPosts = await Post.find();
       const todayPosts = await Post.find({
         generatedAt: { $gte: today, $lt: tomorrow }
       });
@@ -464,14 +466,26 @@ class AutomationController {
         .sort({ createdAt: -1 })
         .limit(10);
       
+      // Calculate statistics based on post status
       const stats = {
+        totalPosts: allPosts.length,
+        posted: allPosts.filter(post => post.status === 'posted').length,
+        pending: allPosts.filter(post => post.status === 'pending').length,
+        failed: allPosts.filter(post => post.status === 'failed').length,
+        declined: allPosts.filter(post => post.status === 'declined').length,
+        approved: allPosts.filter(post => post.status === 'approved').length,
         todayPosts: todayPosts.length,
         totalPrompts: this.prompts.length,
         recentPosts: recentPosts.map(post => ({
-          id: post._id,
+          _id: post._id,
           topic: post.topic,
+          content: post.content,
           status: post.status,
-          createdAt: post.createdAt
+          createdAt: post.createdAt,
+          images: post.images || [],
+          errorMessage: post.errorMessage,
+          postedAt: post.postedAt,
+          approvedAt: post.approvedAt
         }))
       };
       
