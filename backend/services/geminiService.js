@@ -61,22 +61,75 @@ Topic:`;
    */
   async generateContentFromPrompt(userPrompt) {
     try {
-      // First, generate a short topic
       console.log('Generating short topic...');
       const shortTopic = await this.generateShortTopic(userPrompt);
       console.log(`Generated topic: ${shortTopic}`);
       
-      // Then generate the content
       console.log('Generating content...');
-      const fullPrompt = this.standardInstruction + userPrompt;
+      // Enhanced instruction with length requirements
+      const separationInstruction = `
+CRITICAL FORMAT REQUIREMENTS:
+- First provide the QUESTION/PROBLEM statement (2-4 sentences explaining the scenario)
+- Then add exactly this separator line: "---SOLUTION---"
+- Then provide the SOLUTION/ANSWER with these requirements:
+  * MUST be 5-10 sentences long (not just 1-2 sentences)
+  * Include explanation of the concept
+  * Provide step-by-step approach or code example
+  * Add practical tips or best practices
+  * Keep it informative but concise
+- Do NOT include any other separators or labels
+- Aim for medium length - not too short (avoid 1-liner answers), not too lengthy (avoid essays)
+- For coding questions, include actual code snippets with brief explanation
+- For conceptual questions, provide concrete examples
+
+EXAMPLE OF GOOD LENGTH:
+Question: "How do you handle dynamic web elements in Selenium?"
+Solution: "Dynamic web elements change their properties like ID or class at runtime. To handle them, use XPath with contains(), starts-with(), or text() functions instead of absolute locators. Implement explicit waits with ExpectedConditions to wait for element visibility or clickability. Use relative XPath based on stable parent elements. For example: driver.findElement(By.xpath('//div[@class='container']//button[contains(text(),'Submit')]')). You can also use CSS selectors with attribute contains like [class*='dynamic']. Always implement proper wait strategies using WebDriverWait with appropriate timeout values. Add retry mechanisms for flaky elements. Consider using Page Object Model to centralize element locators for easier maintenance."
+
+`;
+      const fullPrompt = separationInstruction + this.standardInstruction + userPrompt;
       
       const result = await this.model.generateContent(fullPrompt);
       const response = await result.response;
       const content = response.text();
+  
+      // Split content by the separator
+      const parts = content.split('---SOLUTION---');
+      const question = parts[0] ? this.formatContent(this.stripPreamble(parts[0].trim())) : '';
+      const solution = parts[1] ? this.formatContent(this.stripPreamble(parts[1].trim())) : '';
 
+      // Validate solution length - if too short, regenerate
+      const solutionWordCount = solution.split(/\s+/).length;
+      if (solutionWordCount < 30) {
+        console.log(`Solution too short (${solutionWordCount} words), regenerating...`);
+        // Retry with more explicit instruction
+        const retryPrompt = separationInstruction + `
+IMPORTANT: The previous solution was too short. Please provide a DETAILED solution with:
+- At least 5-8 sentences
+- Code examples if applicable
+- Step-by-step explanation
+- Practical implementation details
+
+` + this.standardInstruction + userPrompt;
+        
+        const retryResult = await this.model.generateContent(retryPrompt);
+        const retryResponse = await retryResult.response;
+        const retryContent = retryResponse.text();
+        
+        const retryParts = retryContent.split('---SOLUTION---');
+        const retryQuestion = retryParts[0] ? this.formatContent(this.stripPreamble(retryParts[0].trim())) : question;
+        const retrySolution = retryParts[1] ? this.formatContent(this.stripPreamble(retryParts[1].trim())) : solution;
+        
+        return {
+          topic: shortTopic,
+          content: `${retryQuestion}|||SPLIT|||${retrySolution}`
+        };
+      }
+
+      console.log(`Solution length: ${solutionWordCount} words`);
       return {
         topic: shortTopic,
-        content: this.formatContent(this.stripPreamble(content))
+        content: `${question}|||SPLIT|||${solution}`
       };
     } catch (error) {
       console.error('Error generating content with Gemini:', error);
@@ -192,7 +245,7 @@ Topic:`;
   }
 
   /**
-   * Generate retry content with a different approach (kept for compatibility)
+   * Generate retry content with a different approach
    * @param {string} topic - The topic
    * @param {string} originalContent - The original content that was rejected
    * @returns {Promise<Object>} Object containing new topic and content
@@ -204,20 +257,37 @@ Topic:`;
 Previous content to avoid repeating:
 ${originalContent.substring(0, 300)}
 
-Create fresh, unique content with a different angle, different examples, and different structure.`;
+Create fresh, unique content with:
+- A different angle and perspective
+- Different examples
+- Different structure
+- Medium length solution (5-10 sentences, not just 1-2 lines)
+- Practical and detailed explanation`;
 
       // Generate new short topic
       const shortTopic = await this.generateShortTopic(retryPrompt);
       
-      // Generate new content
-      const fullPrompt = this.standardInstruction + retryPrompt;
+      // Generate new content with length requirements
+      const separationInstruction = `
+CRITICAL FORMAT REQUIREMENTS:
+- First provide the QUESTION/PROBLEM statement (2-4 sentences)
+- Then add exactly this separator line: "---SOLUTION---"
+- Then provide a DETAILED SOLUTION (5-10 sentences minimum)
+- Include code examples or step-by-step explanation
+- Make it substantive and informative, not just a one-liner
+`;
+      const fullPrompt = separationInstruction + this.standardInstruction + retryPrompt;
       const result = await this.model.generateContent(fullPrompt);
       const response = await result.response;
       const content = response.text();
 
+      const parts = content.split('---SOLUTION---');
+      const question = parts[0] ? this.formatContent(this.stripPreamble(parts[0].trim())) : '';
+      const solution = parts[1] ? this.formatContent(this.stripPreamble(parts[1].trim())) : '';
+
       return {
         topic: shortTopic,
-        content: this.formatContent(this.stripPreamble(content))
+        content: `${question}|||SPLIT|||${solution}`
       };
     } catch (error) {
       console.error('Error generating retry content with Gemini:', error);

@@ -6,7 +6,7 @@ class EmailService {
     this.transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
       port: process.env.EMAIL_PORT,
-      secure: false, // true for 465, false for other ports
+      secure: false,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
@@ -17,11 +17,6 @@ class EmailService {
     this.appUrl = process.env.APP_URL || 'http://localhost:3000';
   }
 
-  /**
-   * Send approval email to admin
-   * @param {Object} post - Post object with content and metadata
-   * @returns {Promise<Object>} Email result with messageId
-   */
   async sendApprovalEmail(post) {
     try {
       const emailId = uuidv4();
@@ -50,16 +45,15 @@ class EmailService {
     }
   }
 
-  /**
-   * Generate HTML content for approval email
-   * @param {Object} post - Post object
-   * @param {string} approvalUrl - Base approval URL
-   * @returns {string} HTML content
-   */
   generateApprovalEmailHTML(post, approvalUrl) {
     const acceptUrl = `${approvalUrl}/accept`;
     const declineUrl = `${approvalUrl}/decline`;
     const retryUrl = `${approvalUrl}/retry`;
+
+    // Split content into question and solution
+    const [questionPart, solutionPart] = post.content.split('|||SPLIT|||');
+    const question = questionPart ? questionPart.trim() : '';
+    const solution = solutionPart ? solutionPart.trim() : '';
 
     return `
     <!DOCTYPE html>
@@ -103,6 +97,26 @@ class EmailService {
                 margin: 20px 0;
                 white-space: pre-wrap;
                 font-family: 'Courier New', monospace;
+            }
+            .content-section {
+                margin: 20px 0;
+            }
+            .section-title {
+                font-size: 18px;
+                font-weight: bold;
+                color: #e1306c;
+                margin-bottom: 10px;
+                padding: 8px 12px;
+                background-color: #fff0f5;
+                border-radius: 5px;
+            }
+            .question-section {
+                background-color: #fff3cd;
+                border-left: 4px solid #ffc107;
+            }
+            .solution-section {
+                background-color: #d4edda;
+                border-left: 4px solid #28a745;
             }
             .post-meta {
                 background-color: #e8f4fd;
@@ -183,7 +197,15 @@ class EmailService {
                 <p><strong>🔄 Retry Count:</strong> ${post.retryCount}/${post.maxRetries}</p>
             </div>
 
-            <div class="post-content">${post.content}</div>
+            <div class="content-section">
+                <div class="section-title question-section">❓ Question</div>
+                <div class="post-content">${question || 'No question provided'}</div>
+            </div>
+
+            <div class="content-section">
+                <div class="section-title solution-section">✓ Solution</div>
+                <div class="post-content">${solution || 'No solution provided'}</div>
+            </div>
 
             <div class="warning">
                 <strong>⚠️ Note:</strong> This content will be automatically posted to Instagram if approved. 
@@ -207,16 +229,15 @@ class EmailService {
     `;
   }
 
-  /**
-   * Generate plain text content for approval email
-   * @param {Object} post - Post object
-   * @param {string} approvalUrl - Base approval URL
-   * @returns {string} Plain text content
-   */
   generateApprovalEmailText(post, approvalUrl) {
     const acceptUrl = `${approvalUrl}/accept`;
     const declineUrl = `${approvalUrl}/decline`;
     const retryUrl = `${approvalUrl}/retry`;
+
+    // Split content into question and solution
+    const [questionPart, solutionPart] = post.content.split('|||SPLIT|||');
+    const question = questionPart ? questionPart.trim() : 'No question provided';
+    const solution = solutionPart ? solutionPart.trim() : 'No solution provided';
 
     return `
 Instagram Post Approval Required
@@ -226,8 +247,11 @@ Generated: ${new Date(post.generatedAt).toLocaleString()}
 Status: ${post.status}
 Retry Count: ${post.retryCount}/${post.maxRetries}
 
-Content:
-${post.content}
+QUESTION:
+${question}
+
+SOLUTION:
+${solution}
 
 Action Required:
 - Accept & Post: ${acceptUrl}
@@ -239,13 +263,6 @@ Post ID: ${post._id}
     `;
   }
 
-  /**
-   * Send notification email about post status
-   * @param {string} to - Recipient email
-   * @param {string} subject - Email subject
-   * @param {string} content - Email content
-   * @returns {Promise<Object>} Email result
-   */
   async sendNotificationEmail(to, subject, content) {
     try {
       const mailOptions = {
@@ -253,7 +270,7 @@ Post ID: ${post._id}
         to: to,
         subject: subject,
         html: content,
-        text: content.replace(/<[^>]*>/g, '') // Strip HTML tags for text version
+        text: content.replace(/<[^>]*>/g, '')
       };
 
       const result = await this.transporter.sendMail(mailOptions);
@@ -268,40 +285,49 @@ Post ID: ${post._id}
     }
   }
 
-  /**
-   * Send success notification after posting
-   * @param {Object} post - Posted post object
-   * @returns {Promise<Object>} Email result
-   */
   async sendPostSuccessNotification(post) {
     const subject = `✅ Instagram Post Published Successfully - ${post.topic}`;
+    
+    // Split content for display
+    const [questionPart, solutionPart] = post.content.split('|||SPLIT|||');
+    const question = questionPart ? questionPart.trim() : '';
+    const solution = solutionPart ? solutionPart.trim() : '';
+    
     const content = `
       <h2>🎉 Post Published Successfully!</h2>
       <p><strong>Topic:</strong> ${post.topic}</p>
       <p><strong>Posted at:</strong> ${new Date(post.postedAt).toLocaleString()}</p>
       <p><strong>Instagram Post ID:</strong> ${post.instagramPostId}</p>
-      <p><strong>Content:</strong></p>
-      <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; white-space: pre-wrap;">${post.content}</div>
+      
+      <h3>Question:</h3>
+      <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; white-space: pre-wrap; margin-bottom: 15px;">${question}</div>
+      
+      <h3>Solution:</h3>
+      <div style="background-color: #d4edda; padding: 15px; border-radius: 5px; white-space: pre-wrap;">${solution}</div>
     `;
 
     return await this.sendNotificationEmail(this.adminEmail, subject, content);
   }
 
-  /**
-   * Send failure notification
-   * @param {Object} post - Failed post object
-   * @param {string} errorMessage - Error message
-   * @returns {Promise<Object>} Email result
-   */
   async sendPostFailureNotification(post, errorMessage) {
     const subject = `❌ Instagram Post Failed - ${post.topic}`;
+    
+    // Split content for display
+    const [questionPart, solutionPart] = post.content.split('|||SPLIT|||');
+    const question = questionPart ? questionPart.trim() : '';
+    const solution = solutionPart ? solutionPart.trim() : '';
+    
     const content = `
       <h2>⚠️ Post Publishing Failed</h2>
       <p><strong>Topic:</strong> ${post.topic}</p>
       <p><strong>Failed at:</strong> ${new Date().toLocaleString()}</p>
       <p><strong>Error:</strong> ${errorMessage}</p>
-      <p><strong>Content:</strong></p>
-      <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; white-space: pre-wrap;">${post.content}</div>
+      
+      <h3>Question:</h3>
+      <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; white-space: pre-wrap; margin-bottom: 15px;">${question}</div>
+      
+      <h3>Solution:</h3>
+      <div style="background-color: #d4edda; padding: 15px; border-radius: 5px; white-space: pre-wrap;">${solution}</div>
     `;
 
     return await this.sendNotificationEmail(this.adminEmail, subject, content);

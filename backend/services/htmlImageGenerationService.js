@@ -1,9 +1,7 @@
-import { toPng } from 'html-to-image';
 import puppeteer from 'puppeteer';
 import fs from 'fs';
 import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { v4 as uuidv4 } from 'uuid';
 
 class HtmlImageGenerationService {
   constructor() {
@@ -15,62 +13,97 @@ class HtmlImageGenerationService {
     this.ensureOutputDirectory();
   }
 
-  /**
-   * Ensure the output directory exists
-   */
   ensureOutputDirectory() {
     if (!fs.existsSync(this.outputDir)) {
       fs.mkdirSync(this.outputDir, { recursive: true });
     }
   }
 
-  /**
-   * Generate images from text content using HTML template
-   * @param {string} content - Text content to convert to images
-   * @param {string} topic - Topic for styling (short, 4 words max from Gemini)
-   * @returns {Promise<Array>} Array of generated image paths
-   */
   async generateImages(content, topic) {
     try {
-      // Topic is already short (max 4 words) from Gemini, just clean for filename
       const filenameTopic = topic.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
       
-      const { chunks } = await this.paginateContentByMeasuring(content, topic);
+      const [questionPart, solutionPart] = content.split('|||SPLIT|||');
+      
       const imagePaths = [];
-
       const browser = await puppeteer.launch({
         headless: 'new',
         args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
-
+  
       try {
         const page = await browser.newPage();
         await page.setViewport({ width: 1080, height: 1080 });
         page.setDefaultNavigationTimeout(120000);
         page.setDefaultTimeout(120000);
-
-        for (let i = 0; i < chunks.length; i++) {
-          const htmlContent = this.generateHtmlTemplate(chunks[i], topic, i + 1, chunks.length);
-          await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 60000 });
-
-          // Use clean topic and timestamp for filename
-          const timestamp = Date.now();
-          const filename = `post_${filenameTopic}_${timestamp}_${i + 1}.png`;
-          const filepath = path.join(this.outputDir, filename);
-
-          await page.screenshot({
-            path: filepath,
-            type: 'png',
-            fullPage: false,
-            clip: { x: 0, y: 0, width: 1080, height: 1080 }
-          });
-
-          imagePaths.push(filepath);
+  
+        if (questionPart && questionPart.trim()) {
+          const { chunks: questionChunks } = await this.paginateContentByMeasuring(
+            questionPart.trim(), 
+            topic,
+            'Question'
+          );
+          
+          for (let i = 0; i < questionChunks.length; i++) {
+            const htmlContent = this.generateHtmlTemplate(
+              questionChunks[i], 
+              topic, 
+              'Question',
+              i + 1, 
+              questionChunks.length
+            );
+            await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  
+            const timestamp = Date.now();
+            const filename = `post_${filenameTopic}_${timestamp}_question_${i + 1}.png`;
+            const filepath = path.join(this.outputDir, filename);
+  
+            await page.screenshot({
+              path: filepath,
+              type: 'png',
+              fullPage: false,
+              clip: { x: 0, y: 0, width: 1080, height: 1080 }
+            });
+  
+            imagePaths.push(filepath);
+          }
+        }
+  
+        if (solutionPart && solutionPart.trim()) {
+          const { chunks: solutionChunks } = await this.paginateContentByMeasuring(
+            solutionPart.trim(), 
+            topic,
+            'Solution'
+          );
+          
+          for (let i = 0; i < solutionChunks.length; i++) {
+            const htmlContent = this.generateHtmlTemplate(
+              solutionChunks[i], 
+              topic, 
+              'Solution',
+              i + 1, 
+              solutionChunks.length
+            );
+            await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  
+            const timestamp = Date.now();
+            const filename = `post_${filenameTopic}_${timestamp}_solution_${i + 1}.png`;
+            const filepath = path.join(this.outputDir, filename);
+  
+            await page.screenshot({
+              path: filepath,
+              type: 'png',
+              fullPage: false,
+              clip: { x: 0, y: 0, width: 1080, height: 1080 }
+            });
+  
+            imagePaths.push(filepath);
+          }
         }
       } finally {
         await browser.close();
       }
-
+  
       return imagePaths;
     } catch (error) {
       console.error('Error generating images:', error);
@@ -78,64 +111,6 @@ class HtmlImageGenerationService {
     }
   }
 
-  /**
-   * Split content into chunks that fit on images
-   * @param {string} content - Full content
-   * @returns {Array} Array of content chunks
-   */
-  splitContentIntoChunks(content) {
-    // More conservative character limit to ensure content fits properly
-    const maxCharsPerImage = 700;
-    const lines = content.split('\n');
-    const chunks = [];
-    let currentChunk = '';
-    let currentLineCount = 0;
-    const maxLinesPerImage = 25; // Approximate max lines that fit
-
-    for (const line of lines) {
-      const trimmedLine = line.trim();
-      
-      // Skip empty lines but count them
-      if (trimmedLine === '') {
-        if (currentChunk) {
-          currentChunk += '\n';
-          currentLineCount++;
-        }
-        continue;
-      }
-
-      // Check if adding this line would exceed limits
-      const testChunk = currentChunk + (currentChunk ? '\n' : '') + line;
-      const wouldExceedChars = testChunk.length > maxCharsPerImage;
-      const wouldExceedLines = currentLineCount >= maxLinesPerImage;
-      
-      if ((wouldExceedChars || wouldExceedLines) && currentChunk.length > 0) {
-        chunks.push(currentChunk.trim());
-        currentChunk = line;
-        currentLineCount = 1;
-      } else {
-        currentChunk = testChunk;
-        currentLineCount++;
-      }
-    }
-
-    if (currentChunk.trim()) {
-      chunks.push(currentChunk.trim());
-    }
-
-    // If content is too short, return as single chunk
-    if (chunks.length === 0) {
-      chunks.push(content);
-    }
-
-    return chunks;
-  }
-
-  /**
-   * Split content into small units (sentence/line chunks) preserving newlines
-   * @param {string} content
-   * @returns {string[]} units
-   */
   splitIntoUnits(content) {
     const lines = content.split('\n');
     const units = [];
@@ -153,13 +128,7 @@ class HtmlImageGenerationService {
     return units;
   }
 
-  /**
-   * Measure-based pagination using Puppeteer so content never gets cut
-   * @param {string} content
-   * @param {string} topic
-   * @returns {Promise<{chunks: string[]}>}
-   */
-  async paginateContentByMeasuring(content, topic) {
+  async paginateContentByMeasuring(content, topic, contentType = 'Content') {
     const browser = await puppeteer.launch({
       headless: 'new',
       args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -176,18 +145,29 @@ class HtmlImageGenerationService {
 
       let start = 0;
       while (start < units.length) {
-        // Greedily add units until overflow, then back off by one
         let end = start;
         let lastFitEnd = start;
+        
         while (end < units.length) {
           const candidate = units.slice(start, end + 1).join('');
-          const html = this.generateHtmlTemplate(candidate, topic, chunks.length + 1, 1);
+          const html = this.generateHtmlTemplate(
+            candidate, 
+            topic, 
+            contentType,
+            chunks.length + 1, 
+            1
+          );
           await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
+          // Check if content overflows - MORE CONSERVATIVE CHECK
           const isOverflow = await page.evaluate(() => {
             const el = document.querySelector('.content-text');
-            if (!el) return false;
-            return el.scrollHeight > el.clientHeight;
+            const card = document.querySelector('.content-card');
+            if (!el || !card) return false;
+            
+            // Add 20px buffer to ensure nothing gets cut
+            const buffer = 20;
+            return (el.scrollHeight + buffer) > card.clientHeight;
           });
 
           if (isOverflow) {
@@ -198,7 +178,6 @@ class HtmlImageGenerationService {
           }
         }
 
-        // If nothing even fits (extremely long word), hard break by character
         if (lastFitEnd === start) {
           const forced = units[start];
           let sliceLen = Math.min(forced.length, 80);
@@ -218,61 +197,14 @@ class HtmlImageGenerationService {
     }
   }
 
-  /**
-   * Create an image from HTML template
-   * @param {string} text - Text content
-   * @param {string} topic - Topic for styling (short, 4 words max)
-   * @param {number} pageNumber - Current page number
-   * @param {number} totalPages - Total number of pages
-   * @returns {Promise<string>} Path to generated image
-   */
-  async createImageFromHtml(text, topic, pageNumber, totalPages) {
-    const browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-
-    try {
-      const page = await browser.newPage();
-      
-      // Set viewport for Instagram square format
-      await page.setViewport({ width: 1080, height: 1080 });
-
-      // Generate HTML content
-      const htmlContent = this.generateHtmlTemplate(text, topic, pageNumber, totalPages);
-      
-      // Set the HTML content
-      await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-
-      // Generate image with clean filename
-      const filenameTopic = topic.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-      const timestamp = Date.now();
-      const filename = `post_${filenameTopic}_${timestamp}_${pageNumber}.png`;
-      const filepath = path.join(this.outputDir, filename);
-      
-      await page.screenshot({
-        path: filepath,
-        type: 'png',
-        fullPage: false,
-        clip: { x: 0, y: 0, width: 1080, height: 1080 }
-      });
-
-      return filepath;
-    } finally {
-      await browser.close();
-    }
-  }
-
-  /**
-   * Generate HTML template for the image
-   * @param {string} text - Text content
-   * @param {string} topic - Topic for styling (short, 4 words max from Gemini)
-   * @param {number} pageNumber - Current page number
-   * @param {number} totalPages - Total number of pages
-   * @returns {string} HTML content
-   */
-  generateHtmlTemplate(text, topic, pageNumber, totalPages) {
+  generateHtmlTemplate(text, topic, contentType, pageNumber, totalPages) {
     const logoBase64 = this.getLogoBase64();
+
+    const typeBadge = contentType === 'Solution' 
+    ? '<div style="display:inline-block;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;padding:8px 20px;border-radius:20px;font-size:20px;font-weight:700;margin-bottom:12px;box-shadow:0 4px 12px rgba(34,197,94,0.4);">✓ Solution</div>'
+    : '';
+
+    const displayTopic = contentType === 'Question' ? topic : '';
     
     return `
 <!DOCTYPE html>
@@ -295,7 +227,6 @@ class HtmlImageGenerationService {
             position: relative;
             overflow: hidden;
             color: #e6e9ef;
-            /* Premium, tech-inspired gradient using blues, greens, and purples */
             background: radial-gradient(1200px 600px at -10% 0%, rgba(14,165,233,0.18) 0%, rgba(14,165,233,0) 60%),
                         radial-gradient(1200px 600px at 110% 100%, rgba(124,58,237,0.18) 0%, rgba(124,58,237,0) 60%),
                         linear-gradient(135deg, #080c18 0%, #0c1224 35%, #0e1622 60%, #080c18 100%);
@@ -369,7 +300,9 @@ class HtmlImageGenerationService {
             background: rgba(2,6,23,0.35);
             border-bottom: 1px solid rgba(148,163,184,0.18);
             min-height: 80px;
+            max-height: 80px;
             backdrop-filter: blur(10px);
+            flex-shrink: 0;
         }
 
         .header-left {
@@ -400,12 +333,6 @@ class HtmlImageGenerationService {
             transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
         }
 
-        .follow-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 12px 28px rgba(0,0,0,0.4);
-            filter: saturate(1.05);
-        }
-
         .ig-icon {
             width: 18px;
             height: 18px;
@@ -433,19 +360,21 @@ class HtmlImageGenerationService {
         
         .main-content {
             flex: 1;
-            padding: 28px 40px 28px 40px;
+            padding: 24px 40px;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
             position: relative;
             gap: 0;
+            min-height: 0;
+            overflow: hidden;
         }
         
         .topic-title {
             font-size: 38px;
             font-weight: 900;
             color: #f8fafc;
-            margin: 0 0 18px 0;
+            margin: 0 0 16px 0;
             text-align: center;
             line-height: 1.2;
             letter-spacing: -0.02em;
@@ -454,6 +383,7 @@ class HtmlImageGenerationService {
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
+            flex-shrink: 0;
         }
         
         .content-card {
@@ -462,10 +392,14 @@ class HtmlImageGenerationService {
             border: 1px solid rgba(148,163,184,0.22);
             box-shadow: 0 12px 44px rgba(0,0,0,0.45);
             border-radius: 18px;
-            padding: 28px 28px 32px 28px;
+            padding: 24px;
             backdrop-filter: blur(14px) saturate(120%);
             z-index: 3;
             overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
         }
 
         .content-card::before {
@@ -478,16 +412,20 @@ class HtmlImageGenerationService {
         }
 
         .content-text {
-            font-size: 30px;
-            line-height: 1.55;
+            font-size: 28px;
+            line-height: 1.5;
             color: #f1f5f9;
-            text-align: left;
+            text-align: center;  
             white-space: pre-line;
-            max-height: 650px;
-            overflow: visible;
             word-wrap: break-word;
             overflow-wrap: break-word;
             text-shadow: 0 1px 8px rgba(0,0,0,0.45);
+            display: flex;
+            align-items: center;      
+            justify-content: center;
+            flex: 1;
+            overflow: hidden;
+            padding: 12px 0;
         }
         
         .footer {
@@ -498,7 +436,9 @@ class HtmlImageGenerationService {
             justify-content: space-between;
             align-items: center;
             min-height: 60px;
+            max-height: 60px;
             backdrop-filter: blur(10px);
+            flex-shrink: 0;
         }
         
         .page-info {
@@ -543,16 +483,14 @@ class HtmlImageGenerationService {
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
-            max-height: 750px;
-            padding-top: 0;
-            gap: 12px;
+            gap: 10px;
+            min-height: 0;
+            overflow: hidden;
         }
-        
-        @media (max-width: 1080px) {
-            body {
-                width: 100vw;
-                height: 100vh;
-            }
+
+        .badge-wrapper {
+            flex-shrink: 0;
+            text-align: center;
         }
     </style>
 </head>
@@ -562,7 +500,6 @@ class HtmlImageGenerationService {
         <div class="bg-grid"></div>
         <div class="bg-vignette"></div>
         ${logoBase64 ? `<div class="watermark"><img src="${logoBase64}" alt="Watermark"></div>` : ''}
-        <!-- Header with Logo and Brand Name -->
         <div class="header">
             <div class="header-left">
                 ${logoBase64 ? `<img src="${logoBase64}" alt="Logo" class="logo">` : ''}
@@ -580,17 +517,18 @@ class HtmlImageGenerationService {
             </div>
         </div>
         
-        <!-- Main Content Area -->
         <div class="main-content">
             <div class="content-wrapper">
-                <h1 class="topic-title">${this.escapeHtml(topic)}</h1>
+                ${displayTopic ? `<h1 class="topic-title">${this.escapeHtml(displayTopic)}</h1>` : ''}
+                ${typeBadge ? `<div class="badge-wrapper">${typeBadge}</div>` : ''}
                 <div class="content-card">
-                    <div class="content-text">${this.escapeHtml(text)}</div>
+                    <div class="content-text">
+                        ${this.escapeHtml(text)}
+                    </div>
                 </div>
             </div>
         </div>
         
-        <!-- Footer -->
         <div class="footer">
             <div class="page-info">
                 ${totalPages > 1 ? `Page ${pageNumber} of ${totalPages}` : ''}
@@ -611,10 +549,6 @@ class HtmlImageGenerationService {
 </html>`;
   }
 
-  /**
-   * Get logo as base64 string
-   * @returns {string|null} Base64 encoded logo or null
-   */
   getLogoBase64() {
     try {
       if (this.logoPath && fs.existsSync(this.logoPath)) {
@@ -629,11 +563,6 @@ class HtmlImageGenerationService {
     return null;
   }
 
-  /**
-   * Get MIME type based on file extension
-   * @param {string} filePath - Path to the file
-   * @returns {string} MIME type
-   */
   getMimeType(filePath) {
     const ext = path.extname(filePath).toLowerCase();
     const mimeTypes = {
@@ -646,11 +575,6 @@ class HtmlImageGenerationService {
     return mimeTypes[ext] || 'image/png';
   }
 
-  /**
-   * Escape HTML special characters
-   * @param {string} text - Text to escape
-   * @returns {string} Escaped text
-   */
   escapeHtml(text) {
     const div = {
       '&': '&amp;',
@@ -662,10 +586,6 @@ class HtmlImageGenerationService {
     return text.replace(/[&<>"']/g, (match) => div[match]);
   }
 
-  /**
-   * Clean up old images (optional utility)
-   * @param {number} maxAgeHours - Maximum age of images in hours
-   */
   async cleanupOldImages(maxAgeHours = 24) {
     try {
       const files = fs.readdirSync(this.outputDir);
