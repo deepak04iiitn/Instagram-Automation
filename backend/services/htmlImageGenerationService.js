@@ -286,18 +286,18 @@ class HtmlImageGenerationService {
             height: 1080px;
             position: relative;
             overflow: hidden;
-            color: #e6e9ef;
-            background: radial-gradient(1200px 600px at -10% 0%, rgba(14,165,233,0.18) 0%, rgba(14,165,233,0) 60%),
-                        radial-gradient(1200px 600px at 110% 100%, rgba(124,58,237,0.18) 0%, rgba(124,58,237,0) 60%),
-                        linear-gradient(135deg, #080c18 0%, #0c1224 35%, #0e1622 60%, #080c18 100%);
+            color: #1e293b;
+            background: radial-gradient(1200px 600px at -10% 0%, rgba(14,165,233,0.15) 0%, rgba(14,165,233,0) 60%),
+                        radial-gradient(1200px 600px at 110% 100%, rgba(124,58,237,0.12) 0%, rgba(124,58,237,0) 60%),
+                        linear-gradient(135deg, #f8fafc 0%, #f1f5f9 35%, #e2e8f0 60%, #f8fafc 100%);
         }
         
         .bg-grid {
             position: absolute;
             inset: 0;
             background-image: 
-              linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+              linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
             background-size: 36px 36px, 36px 36px;
             mask-image: radial-gradient(circle at 50% 50%, black 25%, transparent 85%);
             pointer-events: none;
@@ -307,9 +307,9 @@ class HtmlImageGenerationService {
         .bg-accent-aurora {
             position: absolute;
             inset: -20% -20% -20% -20%;
-            background: radial-gradient(40% 60% at 20% 20%, rgba(34,197,94,0.10) 0%, rgba(34,197,94,0.00) 60%),
-                        radial-gradient(35% 55% at 80% 70%, rgba(124,58,237,0.14) 0%, rgba(124,58,237,0.00) 60%),
-                        radial-gradient(30% 45% at 70% 20%, rgba(14,165,233,0.10) 0%, rgba(14,165,233,0.00) 60%);
+            background: radial-gradient(40% 60% at 20% 20%, rgba(34,197,94,0.08) 0%, rgba(34,197,94,0.00) 60%),
+                        radial-gradient(35% 55% at 80% 70%, rgba(124,58,237,0.10) 0%, rgba(124,58,237,0.00) 60%),
+                        radial-gradient(30% 45% at 70% 20%, rgba(14,165,233,0.08) 0%, rgba(14,165,233,0.00) 60%);
             filter: blur(18px) saturate(110%);
             pointer-events: none;
             z-index: 0;
@@ -318,7 +318,7 @@ class HtmlImageGenerationService {
         .bg-vignette {
             position: absolute;
             inset: 0;
-            background: radial-gradient(80% 80% at 50% 50%, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.35) 100%);
+            background: radial-gradient(80% 80% at 50% 50%, rgba(255,255,255,0.08) 0%, rgba(0,0,0,0.08) 100%);
             pointer-events: none;
             z-index: 0;
         }
@@ -329,7 +329,7 @@ class HtmlImageGenerationService {
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0.35;
+            opacity: 0.15;
             pointer-events: none;
             mix-blend-mode: normal;
             z-index: 1;
@@ -340,7 +340,7 @@ class HtmlImageGenerationService {
             height: 100%;
             object-fit: cover;
             transform: scale(1.25);
-            filter: brightness(0.28) contrast(1.15) drop-shadow(0 8px 28px rgba(0,0,0,0.45));
+            filter: brightness(0.9) contrast(0.8) drop-shadow(0 8px 28px rgba(0,0,0,0.1));
         }
 
         .container {
@@ -357,8 +357,8 @@ class HtmlImageGenerationService {
             align-items: center;
             justify-content: space-between;
             padding: 20px 40px;
-            background: rgba(2,6,23,0.35);
-            border-bottom: 1px solid rgba(148,163,184,0.18);
+            background: rgba(255,255,255,0.7);
+            border-bottom: 1px solid rgba(148,163,184,0.3);
             min-height: 80px;
             max-height: 80px;
             backdrop-filter: blur(10px);
@@ -388,7 +388,7 @@ class HtmlImageGenerationService {
             font-weight: 800;
             letter-spacing: 0.2px;
             text-decoration: none;
-            box-shadow: 0 10px 24px rgba(0,0,0,0.35);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.25);
             border: 1px solid rgba(255,255,255,0.18);
             transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
         }
@@ -403,7 +403,7 @@ class HtmlImageGenerationService {
             height: 50px;
             margin-right: 15px;
             border-radius: 8px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
             background: #ffffff;
             padding: 6px;
             border: 1px solid rgba(0,0,0,0.06);
@@ -413,7 +413,7 @@ class HtmlImageGenerationService {
         .brand-name {
             font-size: 28px;
             font-weight: 800;
-            color: #e5e7eb;
+            color: #1e293b;
             letter-spacing: -0.5px;
             text-transform: none;
         }
@@ -434,13 +434,13 @@ class HtmlImageGenerationService {
         .topic-title {
             font-size: 38px;
             font-weight: 900;
-            color: #f8fafc;
+            color: #0f172a;
             margin: 0 0 16px 0;
             text-align: center;
             line-height: 1.2;
             letter-spacing: -0.02em;
-            text-shadow: 0 2px 12px rgba(0,0,0,0.35);
-            background: linear-gradient(90deg, #93c5fd 0%, #86efac 30%, #c4b5fd 75%);
+            text-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            background: linear-gradient(90deg, #0ea5e9 0%, #22c55e 30%, #8b5cf6 75%);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -449,9 +449,9 @@ class HtmlImageGenerationService {
         
         .content-card {
             position: relative;
-            background: rgba(2,6,23,0.0);
-            border: 1px solid rgba(148,163,184,0.22);
-            box-shadow: 0 12px 44px rgba(0,0,0,0.45);
+            background: rgba(255,255,255,0.0);
+            border: 1px solid rgba(148,163,184,0.35);
+            box-shadow: 0 12px 44px rgba(0,0,0,0.15);
             border-radius: 18px;
             padding: 30px 40px;
             backdrop-filter: blur(14px) saturate(120%);
@@ -470,14 +470,14 @@ class HtmlImageGenerationService {
             position: absolute;
             inset: 0;
             border-radius: 18px;
-            background: rgba(2,6,23,0.92);
+            background: rgba(255,255,255,0.85);
             z-index: -1;
         }
 
         .content-text {
             font-size: 26px;
             line-height: 1.7;
-            color: #f1f5f9;
+            color: #1e293b;
             text-align: ${textAlign};
             overflow-y: ${isQuestion ? 'visible' : 'auto'};
             overflow-x: hidden;
@@ -497,7 +497,7 @@ class HtmlImageGenerationService {
         .content-text .section-heading {
             font-size: 28px;
             font-weight: 700;
-            color: #93c5fd;
+            color: #0ea5e9;
             margin: 20px 0 12px 0;
             line-height: 1.5;
         }
@@ -532,7 +532,7 @@ class HtmlImageGenerationService {
         }
 
         .content-text .number-item .number {
-            color: #60a5fa;
+            color: #0ea5e9;
             font-size: 26px;
             font-weight: 700;
             flex-shrink: 0;
@@ -550,23 +550,23 @@ class HtmlImageGenerationService {
         }
 
         .content-text::-webkit-scrollbar-track {
-            background: rgba(148,163,184,0.1);
+            background: rgba(148,163,184,0.2);
             border-radius: 4px;
         }
 
         .content-text::-webkit-scrollbar-thumb {
-            background: rgba(148,163,184,0.4);
+            background: rgba(148,163,184,0.5);
             border-radius: 4px;
         }
 
         .content-text::-webkit-scrollbar-thumb:hover {
-            background: rgba(148,163,184,0.6);
+            background: rgba(148,163,184,0.7);
         }
         
         .footer {
             padding: 20px 40px;
-            background: rgba(2,6,23,0.35);
-            border-top: 1px solid rgba(148,163,184,0.18);
+            background: rgba(255,255,255,0.7);
+            border-top: 1px solid rgba(148,163,184,0.3);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -578,7 +578,7 @@ class HtmlImageGenerationService {
         
         .page-info {
             font-size: 16px;
-            color: #cbd5e1;
+            color: #475569;
             font-weight: 600;
         }
         
@@ -591,23 +591,23 @@ class HtmlImageGenerationService {
             width: 10px;
             height: 10px;
             border-radius: 50%;
-            background: rgba(148,163,184,0.35);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.25) inset;
+            background: rgba(148,163,184,0.4);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1) inset;
         }
         
         .dot.active {
-            background: linear-gradient(135deg, #60a5fa 0%, #34d399 60%, #a78bfa 100%);
-            box-shadow: 0 0 0 3px rgba(99,102,241,0.25), 0 4px 14px rgba(0,0,0,0.35);
+            background: linear-gradient(135deg, #0ea5e9 0%, #22c55e 60%, #8b5cf6 100%);
+            box-shadow: 0 0 0 3px rgba(14,165,233,0.25), 0 4px 14px rgba(0,0,0,0.2);
         }
         
         .footer-text {
             font-size: 16px;
-            color: #cbd5e1;
+            color: #475569;
             font-weight: 600;
         }
 
         .footer-link {
-            color: #93c5fd;
+            color: #0ea5e9;
             text-decoration: underline;
             font-weight: 700;
             letter-spacing: 0.2px;
