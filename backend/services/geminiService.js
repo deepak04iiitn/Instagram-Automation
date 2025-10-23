@@ -12,7 +12,7 @@ class GeminiService {
     // Standard instruction to prepend to all prompts
     this.standardInstruction = `IMPORTANT INSTRUCTIONS:
 - Do NOT include any emojis in your response
-- Do NOT use bold, italic, or any markdown formatting
+- Use proper formatting with bullet points, numbered lists, and clear structure
 - Do NOT include any welcoming phrases, preambles, or introductory sentences
 - Start directly with the actual content
 - Keep the response concise and under 2000 characters
@@ -66,27 +66,107 @@ Topic:`;
       console.log(`Generated topic: ${shortTopic}`);
       
       console.log('Generating content...');
-      // Enhanced instruction with length requirements
+      // Enhanced instruction with proper formatting requirements
       const separationInstruction = `
 CRITICAL FORMAT REQUIREMENTS:
-- First provide the QUESTION/PROBLEM statement (2-4 sentences explaining the scenario)
-- Then add exactly this separator line: "---SOLUTION---"
-- Then provide the SOLUTION/ANSWER with these requirements:
-  * MUST be 5-10 sentences long (not just 1-2 sentences)
-  * Include explanation of the concept
-  * Provide step-by-step approach or code example
-  * Add practical tips or best practices
-  * Keep it informative but concise
-- Do NOT include any other separators or labels
-- Aim for medium length - not too short (avoid 1-liner answers), not too lengthy (avoid essays)
-- For coding questions, include actual code snippets with brief explanation
-- For conceptual questions, provide concrete examples
 
-EXAMPLE OF GOOD LENGTH:
-Question: "How do you handle dynamic web elements in Selenium?"
-Solution: "Dynamic web elements change their properties like ID or class at runtime. To handle them, use XPath with contains(), starts-with(), or text() functions instead of absolute locators. Implement explicit waits with ExpectedConditions to wait for element visibility or clickability. Use relative XPath based on stable parent elements. For example: driver.findElement(By.xpath('//div[@class='container']//button[contains(text(),'Submit')]')). You can also use CSS selectors with attribute contains like [class*='dynamic']. Always implement proper wait strategies using WebDriverWait with appropriate timeout values. Add retry mechanisms for flaky elements. Consider using Page Object Model to centralize element locators for easier maintenance."
+1. QUESTION/PROBLEM SECTION:
+   - Provide 2-4 sentences explaining the scenario
+   - Make it clear and concise
 
+2. SEPARATOR:
+   - Add exactly this line: "---SOLUTION---"
+
+3. SOLUTION SECTION (MUST be well-formatted):
+   
+   FORMAT THE SOLUTION PROPERLY:
+   
+   A. For Conceptual Answers:
+      • Start with a brief intro sentence
+      • Use bullet points (•) for key points
+      • Use numbered lists (1., 2., 3.) for steps or sequences
+      • Add sub-bullets where needed (  - sub point)
+      • Keep each point concise (1-2 lines max)
+   
+   B. For Code-Based Answers:
+      • Start with brief explanation
+      • Add numbered steps (1., 2., 3.)
+      • Include code blocks clearly separated
+      • Add bullet points for key concepts
+      • End with practical tips (bullet format)
+   
+   C. Structure Example:
+      Brief intro sentence.
+      
+      Key Points:
+      • First main point
+      • Second main point
+        - Sub-point detail
+        - Another sub-point
+      • Third main point
+      
+      Step-by-step approach:
+      1. First step explanation
+      2. Second step explanation
+      3. Third step explanation
+      
+      Best Practices:
+      • Practice tip one
+      • Practice tip two
+
+   REQUIREMENTS:
+   - MUST use bullet points (•) and numbered lists (1., 2., 3.)
+   - Each bullet/number point should be 1-2 lines
+   - Include 5-10 distinct points/steps
+   - Add clear spacing between sections
+   - Use indentation for sub-points
+   - Keep it scannable and easy to read
+   - For code examples, add comments and explanation before/after
+
+EXAMPLE FORMAT:
+
+Question: How do you handle dynamic web elements in Selenium?
+
+---SOLUTION---
+
+Dynamic elements change their properties at runtime, making them unstable for automation.
+
+Handling Strategies:
+
+• Use relative XPath based on stable parent elements
+  - Example: //div[@class='container']//button[contains(text(),'Submit')]
+
+• Implement explicit waits for element stability
+  - WebDriverWait with ExpectedConditions
+  - Wait for visibility, clickability, or presence
+
+• Use flexible locators with contains() or starts-with()
+  - CSS: [class*='dynamic']
+  - XPath: //div[starts-with(@id,'prefix')]
+
+Step-by-Step Approach:
+
+1. Identify stable parent/ancestor elements
+   - Find elements that don't change
+
+2. Build relative locators from stable elements
+   - Navigate down to target element
+
+3. Add explicit waits before interaction
+   - Wait for element to be clickable
+
+4. Implement retry mechanisms for flaky elements
+   - Add try-catch with retries
+
+Best Practices:
+
+• Avoid using absolute XPath
+• Use custom wait conditions for complex scenarios
+• Centralize locators in Page Object Model
+• Add meaningful wait messages for debugging
+• Test with different data sets to ensure stability
 `;
+
       const fullPrompt = separationInstruction + this.standardInstruction + userPrompt;
       
       const result = await this.model.generateContent(fullPrompt);
@@ -104,11 +184,13 @@ Solution: "Dynamic web elements change their properties like ID or class at runt
         console.log(`Solution too short (${solutionWordCount} words), regenerating...`);
         // Retry with more explicit instruction
         const retryPrompt = separationInstruction + `
-IMPORTANT: The previous solution was too short. Please provide a DETAILED solution with:
-- At least 5-8 sentences
-- Code examples if applicable
-- Step-by-step explanation
-- Practical implementation details
+IMPORTANT: The previous solution was too short. Please provide a DETAILED, WELL-FORMATTED solution with:
+- Clear bullet points (•) for key concepts
+- Numbered lists (1., 2., 3.) for steps
+- At least 5-8 distinct points
+- Code examples with explanations if applicable
+- Sub-bullets for detailed points
+- Practical implementation tips at the end
 
 ` + this.standardInstruction + userPrompt;
         
@@ -153,11 +235,21 @@ IMPORTANT: The previous solution was too short. Please provide a DETAILED soluti
     // Remove emojis
     formatted = formatted.replace(/[\p{Extended_Pictographic}\p{Emoji}]/gu, '');
     
-    // Remove markdown bold/italics
-    formatted = formatted.replace(/[*_~`]+/g, '');
+    // Remove excessive markdown (but keep bullets and numbers)
+    formatted = formatted.replace(/[*_~`]{2,}/g, ''); // Remove bold/italic markers
+    
+    // Normalize bullet points - convert various bullet styles to •
+    formatted = formatted.replace(/^[\s]*[-*]\s/gm, '• ');
+    formatted = formatted.replace(/^[\s]*[•]\s/gm, '• ');
+    
+    // Ensure proper spacing after bullets and numbers
+    formatted = formatted.replace(/^(•|\d+\.)\s*/gm, '$1 ');
     
     // Remove hashtags from content body
     formatted = formatted.replace(/(^|\s)#\w+/g, '').trim();
+    
+    // Ensure proper line breaks between sections
+    formatted = formatted.replace(/\n{3,}/g, '\n\n');
 
     return formatted;
   }
@@ -261,20 +353,23 @@ Create fresh, unique content with:
 - A different angle and perspective
 - Different examples
 - Different structure
-- Medium length solution (5-10 sentences, not just 1-2 lines)
+- WELL-FORMATTED solution with bullets and numbers
 - Practical and detailed explanation`;
 
       // Generate new short topic
       const shortTopic = await this.generateShortTopic(retryPrompt);
       
-      // Generate new content with length requirements
+      // Generate new content with formatting requirements
       const separationInstruction = `
 CRITICAL FORMAT REQUIREMENTS:
 - First provide the QUESTION/PROBLEM statement (2-4 sentences)
 - Then add exactly this separator line: "---SOLUTION---"
-- Then provide a DETAILED SOLUTION (5-10 sentences minimum)
-- Include code examples or step-by-step explanation
-- Make it substantive and informative, not just a one-liner
+- Then provide a WELL-FORMATTED SOLUTION:
+  • Use bullet points (•) for key concepts
+  • Use numbered lists (1., 2., 3.) for steps
+  • Include sub-bullets for details
+  • Make it scannable and easy to read
+  • Include 5-10 distinct formatted points
 `;
       const fullPrompt = separationInstruction + this.standardInstruction + retryPrompt;
       const result = await this.model.generateContent(fullPrompt);

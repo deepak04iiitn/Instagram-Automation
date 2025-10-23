@@ -159,14 +159,13 @@ class HtmlImageGenerationService {
           );
           await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-          // Check if content overflows - MORE CONSERVATIVE CHECK
+          // Check if content overflows
           const isOverflow = await page.evaluate(() => {
             const el = document.querySelector('.content-text');
             const card = document.querySelector('.content-card');
             if (!el || !card) return false;
             
-            // Add 20px buffer to ensure nothing gets cut
-            const buffer = 20;
+            const buffer = 30;
             return (el.scrollHeight + buffer) > card.clientHeight;
           });
 
@@ -197,6 +196,57 @@ class HtmlImageGenerationService {
     }
   }
 
+  /**
+   * Convert plain text to HTML preserving exact formatting, bullets, and numbers
+   */
+  formatTextToHtml(text) {
+    const lines = text.split('\n');
+    let html = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+      
+      // Calculate leading spaces for indentation
+      const leadingSpaces = line.length - line.trimStart().length;
+      const indentLevel = Math.floor(leadingSpaces / 2); // 2 spaces = 1 indent level
+      
+      if (!trimmedLine) {
+        // Empty line - preserve spacing
+        html += '<div class="empty-line"></div>';
+        continue;
+      }
+      
+      // Check for bullet point (•, -, *)
+      const bulletMatch = trimmedLine.match(/^[•\-*]\s+(.+)/);
+      // Check for numbered list (1., 2., etc)
+      const numberMatch = trimmedLine.match(/^(\d+)\.\s+(.+)/);
+      
+      if (bulletMatch) {
+        // Bullet point with indentation
+        html += `<div class="bullet-item" style="padding-left: ${indentLevel * 20}px;">
+          <span class="bullet">•</span>
+          <span class="bullet-text">${this.escapeHtml(bulletMatch[1])}</span>
+        </div>`;
+      } else if (numberMatch) {
+        // Numbered item with indentation
+        html += `<div class="number-item" style="padding-left: ${indentLevel * 20}px;">
+          <span class="number">${numberMatch[1]}.</span>
+          <span class="number-text">${this.escapeHtml(numberMatch[2])}</span>
+        </div>`;
+      } else {
+        // Regular text - check if it's a heading (ends with colon)
+        if (trimmedLine.endsWith(':') && trimmedLine.length < 60) {
+          html += `<div class="section-heading" style="padding-left: ${indentLevel * 20}px;">${this.escapeHtml(trimmedLine)}</div>`;
+        } else {
+          html += `<div class="text-line" style="padding-left: ${indentLevel * 20}px;">${this.escapeHtml(trimmedLine)}</div>`;
+        }
+      }
+    }
+    
+    return html;
+  }
+
   generateHtmlTemplate(text, topic, contentType, pageNumber, totalPages) {
     const logoBase64 = this.getLogoBase64();
 
@@ -205,6 +255,16 @@ class HtmlImageGenerationService {
     : '';
 
     const displayTopic = contentType === 'Question' ? topic : '';
+    
+    // Convert text to formatted HTML preserving exact spacing
+    const formattedContent = this.formatTextToHtml(text);
+    
+    // Different alignment for Question vs Solution
+    const isQuestion = contentType === 'Question';
+    const contentAlignment = isQuestion ? 'center' : 'flex-start';
+    const textAlign = isQuestion ? 'center' : 'left';
+    const cardHeight = isQuestion ? 'auto' : 'auto';
+    const cardMaxHeight = isQuestion ? 'none' : '800px';
     
     return `
 <!DOCTYPE html>
@@ -363,7 +423,8 @@ class HtmlImageGenerationService {
             padding: 24px 40px;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
+            justify-content: ${contentAlignment};
+            align-items: ${isQuestion ? 'center' : 'stretch'};
             position: relative;
             gap: 0;
             min-height: 0;
@@ -392,14 +453,16 @@ class HtmlImageGenerationService {
             border: 1px solid rgba(148,163,184,0.22);
             box-shadow: 0 12px 44px rgba(0,0,0,0.45);
             border-radius: 18px;
-            padding: 24px;
+            padding: 30px 40px;
             backdrop-filter: blur(14px) saturate(120%);
             z-index: 3;
             overflow: hidden;
-            flex: 1;
+            width: ${isQuestion ? 'auto' : '100%'};
+            max-width: ${isQuestion ? '900px' : '100%'};
+            height: ${cardHeight};
+            max-height: ${cardMaxHeight};
             display: flex;
             flex-direction: column;
-            min-height: 0;
         }
 
         .content-card::before {
@@ -412,20 +475,92 @@ class HtmlImageGenerationService {
         }
 
         .content-text {
-            font-size: 28px;
-            line-height: 1.5;
+            font-size: 26px;
+            line-height: 1.7;
             color: #f1f5f9;
-            text-align: center;  
-            white-space: pre-line;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            text-shadow: 0 1px 8px rgba(0,0,0,0.45);
+            text-align: ${textAlign};
+            overflow-y: ${isQuestion ? 'visible' : 'auto'};
+            overflow-x: hidden;
+            padding-right: ${isQuestion ? '0' : '10px'};
+        }
+
+        /* Preserve exact formatting as from Gemini */
+        .content-text .empty-line {
+            height: 1.7em;
+        }
+
+        .content-text .text-line {
+            margin: 6px 0;
+            line-height: 1.7;
+        }
+
+        .content-text .section-heading {
+            font-size: 28px;
+            font-weight: 700;
+            color: #93c5fd;
+            margin: 20px 0 12px 0;
+            line-height: 1.5;
+        }
+
+        .content-text .bullet-item {
             display: flex;
-            align-items: center;      
-            justify-content: center;
+            align-items: flex-start;
+            margin: 8px 0;
+            line-height: 1.7;
+            gap: 12px;
+        }
+
+        .content-text .bullet-item .bullet {
+            color: #22c55e;
+            font-size: 28px;
+            font-weight: bold;
+            flex-shrink: 0;
+            margin-top: -2px;
+        }
+
+        .content-text .bullet-item .bullet-text {
             flex: 1;
-            overflow: hidden;
-            padding: 12px 0;
+            padding-top: 2px;
+        }
+
+        .content-text .number-item {
+            display: flex;
+            align-items: flex-start;
+            margin: 8px 0;
+            line-height: 1.7;
+            gap: 10px;
+        }
+
+        .content-text .number-item .number {
+            color: #60a5fa;
+            font-size: 26px;
+            font-weight: 700;
+            flex-shrink: 0;
+            min-width: 30px;
+        }
+
+        .content-text .number-item .number-text {
+            flex: 1;
+            padding-top: 1px;
+        }
+
+        /* Custom scrollbar for solution only */
+        .content-text::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .content-text::-webkit-scrollbar-track {
+            background: rgba(148,163,184,0.1);
+            border-radius: 4px;
+        }
+
+        .content-text::-webkit-scrollbar-thumb {
+            background: rgba(148,163,184,0.4);
+            border-radius: 4px;
+        }
+
+        .content-text::-webkit-scrollbar-thumb:hover {
+            background: rgba(148,163,184,0.6);
         }
         
         .footer {
@@ -479,13 +614,13 @@ class HtmlImageGenerationService {
         }
         
         .content-wrapper {
-            flex: 1;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
+            justify-content: ${contentAlignment};
+            align-items: ${isQuestion ? 'center' : 'stretch'};
             gap: 10px;
-            min-height: 0;
-            overflow: hidden;
+            width: 100%;
+            height: 100%;
         }
 
         .badge-wrapper {
@@ -523,7 +658,7 @@ class HtmlImageGenerationService {
                 ${typeBadge ? `<div class="badge-wrapper">${typeBadge}</div>` : ''}
                 <div class="content-card">
                     <div class="content-text">
-                        ${this.escapeHtml(text)}
+                        ${formattedContent}
                     </div>
                 </div>
             </div>
