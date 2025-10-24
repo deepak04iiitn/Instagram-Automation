@@ -5,11 +5,7 @@ import mongoose from 'mongoose';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-
-// Import routes
 import automationRoutes from './routes/automation.js';
-
-// Import services
 import SchedulerService from './services/schedulerService.js';
 import AutomationController from './controllers/automationController.js';
 
@@ -145,6 +141,14 @@ async function initializeServices() {
     process.exit(1);
   }
 }
+
+
+// Serve frontend files
+app.use(express.static(path.join(__dirname, '/frontend/dist')));
+app.get('/*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
+});
+
 
 // Start server
 app.listen(PORT, async () => {
