@@ -5,6 +5,8 @@ import ImageGenerationService from '../services/imageGenerationService.js';
 import GoogleDriveService from '../services/googleDriveService.js';
 import CloudinaryService from '../services/cloudinaryService.js';
 import InstagramService from '../services/instagramService.js';
+import JobPostingService from '../services/jobPostingService.js';
+import DatabaseUtils from '../utils/databaseUtils.js';
 import moment from 'moment';
 
 class AutomationController {
@@ -15,6 +17,7 @@ class AutomationController {
     this.googleDriveService = new GoogleDriveService();
     this.cloudinaryService = new CloudinaryService();
     this.instagramService = new InstagramService();
+    this.jobPostingService = new JobPostingService();
     
     // Array of prompts - one will be randomly selected daily
     this.prompts = [
@@ -171,26 +174,26 @@ class AutomationController {
    * Create a new post record
    */
   async createPost(prompt, content) {
-    const post = new Post({
+    const postData = {
       topic: prompt.substring(0, 100), // Store first 100 chars of prompt as topic
       content: content,
       status: 'pending'
-    });
+    };
     
-    return await post.save();
+    return await DatabaseUtils.createWithRetry(Post, postData, 3);
   }
 
   /**
    * Create approval record
    */
   async createApprovalRecord(postId, emailId) {
-    const approval = new Approval({
+    const approvalData = {
       postId: postId,
       emailId: emailId,
       adminEmail: process.env.ADMIN_EMAIL
-    });
+    };
     
-    return await approval.save();
+    return await DatabaseUtils.createWithRetry(Approval, approvalData, 3);
   }
 
   /**
@@ -369,11 +372,11 @@ class AutomationController {
       // Get a new random prompt
       const newPrompt = this.getRandomPrompt();
       console.log('Generating retry content with new prompt...');
-      const newContent = await this.geminiService.generateContentFromPrompt(newPrompt);
+      const newContentResult = await this.geminiService.generateContentFromPrompt(newPrompt);
       
       // Update post with new content
-      post.topic = newPrompt.substring(0, 100);
-      post.content = newContent;
+      post.topic = newContentResult.topic || newPrompt.substring(0, 100);
+      post.content = newContentResult.content;
       post.retryCount += 1;
       post.status = 'pending';
       await post.save();
@@ -534,6 +537,57 @@ class AutomationController {
     } catch (error) {
       console.error('Error getting posts:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Post job update manually
+   */
+  async postJobUpdate() {
+    try {
+      console.log('Starting manual job update posting...');
+      const result = await this.jobPostingService.postJobUpdate();
+      console.log('Manual job update posting completed successfully');
+      return result;
+    } catch (error) {
+      console.error('Error in manual job update posting:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get job posting service status
+   */
+  getJobPostingStatus() {
+    return {
+      postedJobsCount: this.jobPostingService.postedJobs.size,
+      isServiceAvailable: true
+    };
+  }
+
+  /**
+   * Test job fetching
+   */
+  async testJobFetching() {
+    try {
+      const jobs = await this.jobPostingService.fetchJobs(5);
+      return {
+        success: true,
+        jobsFound: jobs.length,
+        sampleJobs: jobs.slice(0, 2).map(job => ({
+          id: job._id,
+          company: job.company,
+          title: job.job_title || job.title,
+          location: job.location,
+          hasValidLink: !!job.apply_link
+        }))
+      };
+    } catch (error) {
+      console.error('Error testing job fetching:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   }
 }

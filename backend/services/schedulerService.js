@@ -1,9 +1,11 @@
 import cron from 'node-cron';
 import moment from 'moment';
+import JobPostingService from './jobPostingService.js';
 
 class SchedulerService {
   constructor(automationController) {
     this.automationController = automationController;
+    this.jobPostingService = new JobPostingService();
     this.jobs = new Map();
     this.isRunning = false;
   }
@@ -19,8 +21,11 @@ class SchedulerService {
 
     console.log('Starting Instagram Automation Scheduler...');
     
-    // Schedule daily automation at 10 AM
+    // Schedule daily automation at 10 AM IST (4:30 AM UTC)
     this.scheduleDailyAutomation();
+    
+    // Schedule job posting at 5 PM IST (11:30 AM UTC)
+    this.scheduleJobPosting();
     
     // Schedule cleanup tasks
     this.scheduleCleanupTasks();
@@ -52,14 +57,14 @@ class SchedulerService {
   }
 
   /**
-   * Schedule daily automation at 10 AM
+   * Schedule daily automation at 10 AM IST
    */
   scheduleDailyAutomation() {
     const jobName = 'daily-automation';
     
-    // Run at 10:00 AM every day
-    const job = cron.schedule('0 10 * * *', async () => {
-      console.log(`\n=== Daily Automation Started at ${new Date().toLocaleString()} ===`);
+    // Run at 10:00 AM IST every day (4:30 AM UTC)
+    const job = cron.schedule('30 4 * * *', async () => {
+      console.log(`\n=== Daily Automation Started at ${new Date().toLocaleString()} (IST) ===`);
       
       try {
         await this.automationController.runDailyAutomation();
@@ -76,24 +81,65 @@ class SchedulerService {
       }
     }, {
       scheduled: false,
-      timezone: 'UTC'
+      timezone: 'Asia/Kolkata'
     });
 
     this.jobs.set(jobName, job);
     job.start();
     
-    console.log(`Scheduled daily automation at 10:00 AM UTC (Job: ${jobName})`);
+    console.log(`Scheduled daily automation at 10:00 AM IST (Job: ${jobName})`);
+  }
+
+  /**
+   * Schedule job posting at 5 PM IST
+   */
+  scheduleJobPosting() {
+    const jobName = 'job-posting';
+    
+    // Run at 5:00 PM IST every day (11:30 AM UTC)
+    const job = cron.schedule('30 11 * * *', async () => {
+      console.log(`\n=== Job Posting Started at ${new Date().toLocaleString()} (IST) ===`);
+      
+      try {
+        await this.jobPostingService.postJobUpdate();
+        console.log('=== Job Posting Completed Successfully ===\n');
+      } catch (error) {
+        console.error('=== Job Posting Failed ===', error);
+        
+        // Send error notification
+        try {
+          await this.jobPostingService.emailService.sendNotificationEmail(
+            process.env.ADMIN_EMAIL,
+            'Job Posting Failed',
+            `Job posting failed with error: ${error.message}\n\nTime: ${new Date().toLocaleString()}`
+          );
+        } catch (notificationError) {
+          console.error('Failed to send error notification:', notificationError);
+        }
+      }
+    }, {
+      scheduled: false,
+      timezone: 'Asia/Kolkata'
+    });
+
+    this.jobs.set(jobName, job);
+    job.start();
+    
+    console.log(`Scheduled job posting at 5:00 PM IST (Job: ${jobName})`);
   }
 
   /**
    * Schedule cleanup tasks
    */
   scheduleCleanupTasks() {
-    // Clean up old images every day at 2 AM
+    // Clean up old images every day at 2 AM IST
     this.scheduleImageCleanup();
     
-    // Clean up old posts every week on Sunday at 3 AM
+    // Clean up old posts every week on Sunday at 3 AM IST
     this.schedulePostCleanup();
+    
+    // Clean up posted jobs memory every day at 1 AM IST
+    this.scheduleJobMemoryCleanup();
   }
 
   /**
@@ -102,8 +148,8 @@ class SchedulerService {
   scheduleImageCleanup() {
     const jobName = 'image-cleanup';
     
-    const job = cron.schedule('0 2 * * *', async () => {
-      console.log(`\n=== Image Cleanup Started at ${new Date().toLocaleString()} ===`);
+    const job = cron.schedule('0 20 * * *', async () => {
+      console.log(`\n=== Image Cleanup Started at ${new Date().toLocaleString()} (IST) ===`);
       
       try {
         await this.automationController.cleanupOldImages();
@@ -113,13 +159,13 @@ class SchedulerService {
       }
     }, {
       scheduled: false,
-      timezone: 'UTC'
+      timezone: 'Asia/Kolkata'
     });
 
     this.jobs.set(jobName, job);
     job.start();
     
-    console.log(`Scheduled image cleanup at 2:00 AM UTC (Job: ${jobName})`);
+    console.log(`Scheduled image cleanup at 2:00 AM IST (Job: ${jobName})`);
   }
 
   /**
@@ -128,8 +174,8 @@ class SchedulerService {
   schedulePostCleanup() {
     const jobName = 'post-cleanup';
     
-    const job = cron.schedule('0 3 * * 0', async () => {
-      console.log(`\n=== Post Cleanup Started at ${new Date().toLocaleString()} ===`);
+    const job = cron.schedule('0 21 * * 0', async () => {
+      console.log(`\n=== Post Cleanup Started at ${new Date().toLocaleString()} (IST) ===`);
       
       try {
         await this.automationController.cleanupOldPosts();
@@ -139,13 +185,39 @@ class SchedulerService {
       }
     }, {
       scheduled: false,
-      timezone: 'UTC'
+      timezone: 'Asia/Kolkata'
     });
 
     this.jobs.set(jobName, job);
     job.start();
     
-    console.log(`Scheduled post cleanup on Sundays at 3:00 AM UTC (Job: ${jobName})`);
+    console.log(`Scheduled post cleanup on Sundays at 3:00 AM IST (Job: ${jobName})`);
+  }
+
+  /**
+   * Schedule job memory cleanup
+   */
+  scheduleJobMemoryCleanup() {
+    const jobName = 'job-memory-cleanup';
+    
+    const job = cron.schedule('0 19 * * *', async () => {
+      console.log(`\n=== Job Memory Cleanup Started at ${new Date().toLocaleString()} (IST) ===`);
+      
+      try {
+        this.jobPostingService.cleanupPostedJobs();
+        console.log('=== Job Memory Cleanup Completed ===\n');
+      } catch (error) {
+        console.error('=== Job Memory Cleanup Failed ===', error);
+      }
+    }, {
+      scheduled: false,
+      timezone: 'Asia/Kolkata'
+    });
+
+    this.jobs.set(jobName, job);
+    job.start();
+    
+    console.log(`Scheduled job memory cleanup at 1:00 AM IST (Job: ${jobName})`);
   }
 
   /**
@@ -159,6 +231,21 @@ class SchedulerService {
       console.log('=== Manual Automation Run Completed Successfully ===\n');
     } catch (error) {
       console.error('=== Manual Automation Run Failed ===', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Run job posting immediately (for testing)
+   */
+  async runJobPostingNow() {
+    console.log(`\n=== Manual Job Posting Run Started at ${new Date().toLocaleString()} ===`);
+    
+    try {
+      await this.jobPostingService.postJobUpdate();
+      console.log('=== Manual Job Posting Run Completed Successfully ===\n');
+    } catch (error) {
+      console.error('=== Manual Job Posting Run Failed ===', error);
       throw error;
     }
   }

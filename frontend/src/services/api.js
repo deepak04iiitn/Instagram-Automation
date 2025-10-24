@@ -55,6 +55,17 @@ export const automationAPI = {
   healthCheck: () => api.get('/health'),
 };
 
+export const jobAPI = {
+  // Post job update
+  postJobUpdate: () => api.post('/api/jobs/post'),
+  
+  // Get job posting status
+  getJobStatus: () => api.get('/api/jobs/status'),
+  
+  // Test job fetching
+  testJobFetching: () => api.get('/api/jobs/test'),
+};
+
 export const approvalAPI = {
   // Handle post approval
   acceptPost: (postId, emailId) => 

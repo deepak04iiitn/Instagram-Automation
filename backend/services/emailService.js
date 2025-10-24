@@ -285,6 +285,401 @@ Post ID: ${post._id}
     }
   }
 
+  async sendJobPostSuccessNotification(post, instagramPostId, selectedJobs, cloudinaryUrl, isManual = false) {
+    const subject = isManual 
+      ? `🎉 Manual Job Post Published Successfully!`
+      : `🎉 Job Post Published Successfully!`;
+    
+    const htmlContent = this.generateJobPostSuccessHTML(post, instagramPostId, selectedJobs, cloudinaryUrl, isManual);
+    const textContent = this.generateJobPostSuccessText(post, instagramPostId, selectedJobs, cloudinaryUrl, isManual);
+
+    const mailOptions = {
+      from: `"Instagram Automation" <${process.env.EMAIL_USER}>`,
+      to: this.adminEmail,
+      subject: subject,
+      html: htmlContent,
+      text: textContent
+    };
+
+    const result = await this.transporter.sendMail(mailOptions);
+    
+    return {
+      success: true,
+      messageId: result.messageId
+    };
+  }
+
+  generateJobPostSuccessHTML(post, instagramPostId, selectedJobs, cloudinaryUrl, isManual = false) {
+    const postType = isManual ? 'Manual Job Post' : 'Job Post';
+    const postedAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+    
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${postType} Published Successfully</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 700px;
+                margin: 0 auto;
+                padding: 20px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+            }
+            .container {
+                background-color: white;
+                padding: 40px;
+                border-radius: 20px;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                position: relative;
+                overflow: hidden;
+            }
+            .container::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 5px;
+                background: linear-gradient(90deg, #e1306c, #405de6, #5851db, #833ab4, #c13584, #fd1d1d, #f56040, #f77737, #fcaf45, #ffdc80);
+            }
+            .header {
+                text-align: center;
+                margin-bottom: 40px;
+                padding-bottom: 30px;
+                border-bottom: 2px solid #f0f0f0;
+            }
+            .header h1 {
+                color: #e1306c;
+                margin: 0;
+                font-size: 32px;
+                font-weight: 700;
+                text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            }
+            .header .subtitle {
+                color: #666;
+                font-size: 16px;
+                margin-top: 10px;
+                font-weight: 300;
+            }
+            .success-badge {
+                display: inline-block;
+                background: linear-gradient(45deg, #28a745, #20c997);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 50px;
+                font-weight: bold;
+                font-size: 18px;
+                margin: 20px 0;
+                box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+            }
+            .post-details {
+                background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+                padding: 30px;
+                border-radius: 15px;
+                margin: 30px 0;
+                border-left: 5px solid #e1306c;
+            }
+            .detail-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 0;
+                border-bottom: 1px solid #dee2e6;
+            }
+            .detail-row:last-child {
+                border-bottom: none;
+            }
+            .detail-label {
+                font-weight: 600;
+                color: #495057;
+                font-size: 14px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .detail-value {
+                font-weight: 500;
+                color: #212529;
+                font-size: 16px;
+            }
+            .jobs-section {
+                margin: 30px 0;
+            }
+            .jobs-title {
+                font-size: 24px;
+                font-weight: 700;
+                color: #e1306c;
+                margin-bottom: 20px;
+                text-align: center;
+                position: relative;
+            }
+            .jobs-title::after {
+                content: '';
+                position: absolute;
+                bottom: -10px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 60px;
+                height: 3px;
+                background: linear-gradient(90deg, #e1306c, #405de6);
+                border-radius: 2px;
+            }
+            .job-card {
+                background: white;
+                border: 2px solid #f0f0f0;
+                border-radius: 15px;
+                padding: 25px;
+                margin: 20px 0;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            .job-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 4px;
+                height: 100%;
+                background: linear-gradient(180deg, #e1306c, #405de6);
+            }
+            .job-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            }
+            .job-company {
+                font-size: 20px;
+                font-weight: 700;
+                color: #e1306c;
+                margin-bottom: 8px;
+            }
+            .job-title {
+                font-size: 18px;
+                font-weight: 600;
+                color: #495057;
+                margin-bottom: 12px;
+            }
+            .job-details {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 15px;
+                margin-top: 15px;
+            }
+            .job-detail {
+                display: flex;
+                align-items: center;
+                background: #f8f9fa;
+                padding: 8px 12px;
+                border-radius: 20px;
+                font-size: 14px;
+                color: #6c757d;
+            }
+            .job-detail-icon {
+                margin-right: 6px;
+                font-size: 16px;
+            }
+            .image-section {
+                text-align: center;
+                margin: 40px 0;
+                padding: 30px;
+                background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+                border-radius: 20px;
+                border: 2px dashed #dee2e6;
+            }
+            .image-preview {
+                max-width: 100%;
+                height: auto;
+                border-radius: 15px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+                margin: 20px 0;
+            }
+            .image-link {
+                display: inline-block;
+                background: linear-gradient(45deg, #e1306c, #405de6);
+                color: white;
+                padding: 12px 24px;
+                text-decoration: none;
+                border-radius: 25px;
+                font-weight: 600;
+                margin-top: 15px;
+                transition: all 0.3s ease;
+            }
+            .image-link:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(225, 48, 108, 0.3);
+            }
+            .footer {
+                text-align: center;
+                margin-top: 40px;
+                padding-top: 30px;
+                border-top: 2px solid #f0f0f0;
+                color: #6c757d;
+                font-size: 14px;
+            }
+            .footer-logo {
+                font-size: 24px;
+                font-weight: 700;
+                color: #e1306c;
+                margin-bottom: 10px;
+            }
+            .stats-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 20px;
+                margin: 30px 0;
+            }
+            .stat-card {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 20px;
+                border-radius: 15px;
+                text-align: center;
+                box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            }
+            .stat-number {
+                font-size: 28px;
+                font-weight: 700;
+                margin-bottom: 5px;
+            }
+            .stat-label {
+                font-size: 12px;
+                opacity: 0.9;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+            @media (max-width: 600px) {
+                .container {
+                    padding: 20px;
+                    margin: 10px;
+                }
+                .header h1 {
+                    font-size: 24px;
+                }
+                .job-details {
+                    flex-direction: column;
+                }
+                .stats-grid {
+                    grid-template-columns: 1fr;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🎉 ${postType} Published Successfully!</h1>
+                <div class="subtitle">Your QA job opportunities are now live on Instagram</div>
+                <div class="success-badge">✅ Successfully Posted</div>
+            </div>
+
+            <div class="post-details">
+                <div class="detail-row">
+                    <span class="detail-label">📱 Instagram Post ID</span>
+                    <span class="detail-value">${instagramPostId}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">📝 Database Record ID</span>
+                    <span class="detail-value">${post._id}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">⏰ Posted At</span>
+                    <span class="detail-value">${postedAt} IST</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">📊 Post Type</span>
+                    <span class="detail-value">${postType}</span>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">${selectedJobs.length}</div>
+                    <div class="stat-label">Jobs Posted</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${selectedJobs.reduce((acc, job) => acc + (job.min_exp || 0), 0)}</div>
+                    <div class="stat-label">Total Experience</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${new Set(selectedJobs.map(job => job.company)).size}</div>
+                    <div class="stat-label">Companies</div>
+                </div>
+            </div>
+
+            <div class="jobs-section">
+                <h2 class="jobs-title">📋 Posted Jobs</h2>
+                ${selectedJobs.map((job, index) => `
+                    <div class="job-card">
+                        <div class="job-company">${job.company}</div>
+                        <div class="job-title">${job.job_title || job.title}</div>
+                        <div class="job-details">
+                            <div class="job-detail">
+                                <span class="job-detail-icon">📍</span>
+                                ${Array.isArray(job.location) ? job.location.join(', ') : job.location}
+                            </div>
+                            <div class="job-detail">
+                                <span class="job-detail-icon">📅</span>
+                                ${job.min_exp || 0}+ years experience
+                            </div>
+                            ${job.apply_link ? `
+                                <div class="job-detail">
+                                    <span class="job-detail-icon">🔗</span>
+                                    <a href="${job.apply_link}" style="color: #e1306c; text-decoration: none;">Apply Now</a>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="image-section">
+                <h3 style="color: #e1306c; margin-bottom: 20px;">🖼️ Generated Image</h3>
+                <img src="${cloudinaryUrl}" alt="Job Posting Image" class="image-preview" style="max-width: 400px;">
+                <br>
+                <a href="${cloudinaryUrl}" class="image-link" target="_blank">View Full Image</a>
+            </div>
+
+            <div class="footer">
+                <div class="footer-logo">Instagram Automation</div>
+                <p>This is an automated notification from your Instagram Automation System</p>
+                <p>Generated at: ${postedAt} IST</p>
+                <p style="margin-top: 20px; font-size: 12px; color: #adb5bd;">
+                    🚀 Powered by Instagram Automation | Made with ❤️ for QA Professionals
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    `;
+  }
+
+  generateJobPostSuccessText(post, instagramPostId, selectedJobs, cloudinaryUrl, isManual = false) {
+    const postType = isManual ? 'Manual Job Post' : 'Job Post';
+    const postedAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+    
+    return `
+${postType} Published Successfully!
+
+📱 Instagram Post ID: ${instagramPostId}
+📝 Database Record ID: ${post._id}
+⏰ Posted at: ${postedAt} IST
+
+📋 Jobs Posted:
+${selectedJobs.map((job, index) => `${index + 1}. ${job.company} - ${job.job_title || job.title}`).join('\n')}
+
+🖼️ Image: ${cloudinaryUrl}
+
+This is an automated notification from Instagram Automation System
+Generated at: ${postedAt} IST
+    `;
+  }
+
   async sendPostSuccessNotification(post) {
     const subject = `✅ Instagram Post Published Successfully - ${post.topic}`;
     

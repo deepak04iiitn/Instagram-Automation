@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, BarChart3, PieChart as PieChartIcon } from 'lucide-react';
 
 const AnalyticsChart = ({ posts }) => {
   const statusData = posts.reduce((acc, post) => {
@@ -23,7 +23,7 @@ const AnalyticsChart = ({ posts }) => {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([topic, count]) => ({
-      topic: topic.length > 15 ? topic.substring(0, 15) + '...' : topic,
+      topic: topic.length > 20 ? topic.substring(0, 20) + '...' : topic,
       count,
     }));
 
@@ -32,16 +32,12 @@ const AnalyticsChart = ({ posts }) => {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-white px-4 py-3 rounded-xl shadow-xl border border-gray-200"
-        >
-          <p className="font-semibold text-gray-900 mb-1">{label}</p>
-          <p className="text-sm text-gray-600">
-            Count: <span className="font-bold text-blue-600">{payload[0].value}</span>
+        <div className="bg-gray-800/95 backdrop-blur-sm px-4 py-3 rounded-xl shadow-xl border border-gray-700">
+          <p className="text-sm font-semibold text-gray-100">{label}</p>
+          <p className="text-sm text-gray-300">
+            Count: <span className="font-bold text-blue-400">{payload[0].value}</span>
           </p>
-        </motion.div>
+        </div>
       );
     }
     return null;
@@ -62,7 +58,7 @@ const AnalyticsChart = ({ posts }) => {
         fill="white"
         textAnchor={x > cx ? 'start' : 'end'}
         dominantBaseline="central"
-        className="text-xs font-bold"
+        className="text-xs font-bold drop-shadow-lg"
       >
         {`${(percent * 100).toFixed(0)}%`}
       </text>
@@ -71,107 +67,121 @@ const AnalyticsChart = ({ posts }) => {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-      className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden h-full"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="bg-gray-800/50 rounded-2xl shadow-lg border border-gray-700/50 overflow-hidden backdrop-blur-sm"
     >
-      <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-gradient-to-br from-green-500 to-teal-600 rounded-xl">
-            <TrendingUp className="h-5 w-5 text-white" />
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+              <BarChart3 className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg sm:text-xl font-bold text-white">Analytics Overview</h3>
+              <p className="text-xs sm:text-sm text-blue-100">Post distribution & performance</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Analytics</h2>
-            <p className="text-sm text-gray-500">Post distribution</p>
+          <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 bg-white/20 rounded-full backdrop-blur-sm">
+            <TrendingUp className="h-4 w-4 text-white" />
+            <span className="text-sm font-semibold text-white">{posts.length} Total</span>
           </div>
         </div>
       </div>
 
-      <div className="p-6 space-y-6">
+      {/* Charts Grid */}
+      <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Status Distribution */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Status Distribution</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={CustomPieLabel}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-                animationBegin={0}
-                animationDuration={800}
-              >
-                {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex flex-wrap justify-center gap-3 mt-4">
-            {pieData.map((entry, index) => (
-              <motion.div
-                key={entry.name}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 + index * 0.1 }}
-                className="flex items-center space-x-2"
-              >
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                />
-                <span className="text-xs font-medium text-gray-600">
-                  {entry.name} ({entry.value})
-                </span>
-              </motion.div>
-            ))}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <PieChartIcon className="h-5 w-5 text-gray-400" />
+              <h4 className="text-base font-semibold text-gray-100">Status Distribution</h4>
+            </div>
           </div>
-        </motion.div>
+          
+          <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700/30">
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={CustomPieLabel}
+                  outerRadius={100}
+                  innerRadius={60}
+                  fill="#8884d8"
+                  dataKey="value"
+                  animationBegin={0}
+                  animationDuration={800}
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+
+            {/* Legend */}
+            <div className="grid grid-cols-2 gap-2 mt-4">
+              {pieData.map((entry, index) => (
+                <div key={entry.name} className="flex items-center space-x-2 p-2 bg-gray-800/50 rounded-lg border border-gray-700/30">
+                  <div
+                    className="h-3 w-3 rounded-full"
+                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                  />
+                  <span className="text-xs font-medium text-gray-300">
+                    {entry.name} ({entry.value})
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
         {/* Top Topics */}
         {barData.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.5 }}
-          >
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Top 5 Topics</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={barData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis
-                  dataKey="topic"
-                  tick={{ fontSize: 11, fill: '#6b7280' }}
-                  tickLine={false}
-                />
-                <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }} />
-                <Bar
-                  dataKey="count"
-                  fill="url(#colorGradient)"
-                  radius={[8, 8, 0, 0]}
-                  animationBegin={0}
-                  animationDuration={800}
-                />
-                <defs>
-                  <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3B82F6" stopOpacity={1} />
-                    <stop offset="100%" stopColor="#8B5CF6" stopOpacity={0.8} />
-                  </linearGradient>
-                </defs>
-              </BarChart>
-            </ResponsiveContainer>
-          </motion.div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <BarChart3 className="h-5 w-5 text-gray-400" />
+                <h4 className="text-base font-semibold text-gray-100">Top 5 Topics</h4>
+              </div>
+            </div>
+
+            <div className="bg-gray-900/50 rounded-xl p-4 border border-gray-700/30">
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                  <XAxis
+                    dataKey="topic"
+                    tick={{ fill: '#9CA3AF', fontSize: 11 }}
+                    angle={-15}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }} />
+                  <Bar
+                    dataKey="count"
+                    fill="url(#colorGradient)"
+                    radius={[8, 8, 0, 0]}
+                    animationBegin={0}
+                    animationDuration={800}
+                  />
+                  <defs>
+                    <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#3B82F6" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#6366F1" stopOpacity={0.8} />
+                    </linearGradient>
+                  </defs>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         )}
       </div>
     </motion.div>

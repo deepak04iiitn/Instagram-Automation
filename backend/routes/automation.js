@@ -23,93 +23,122 @@ router.post('/run', async (req, res) => {
   }
 });
 
-// Handle post approval - restructured routes
-router.get('/approve/:postId/:emailId', async (req, res) => {
+// Handle post approval - accept action
+router.get('/approve/:postId/:emailId/accept', async (req, res) => {
   try {
     const { postId, emailId } = req.params;
-    const { action } = req.query;
-
-    if (action === 'accept') {
-      const result = await automationController.handlePostApproval(postId, emailId);
-      res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Post Approved</title>
-          <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-            .success { color: #28a745; font-size: 24px; }
-            .message { margin: 20px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="success">✅ Post Approved Successfully!</div>
-          <div class="message">Your post has been published to Instagram.</div>
-          <p>Post ID: ${postId}</p>
-        </body>
-        </html>
-      `);
-    } else if (action === 'decline') {
-      await automationController.handlePostDecline(postId, emailId);
-      res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Post Declined</title>
-          <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-            .info { color: #17a2b8; font-size: 24px; }
-            .message { margin: 20px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="info">ℹ️ Post Declined</div>
-          <div class="message">This post has been declined and will not be published.</div>
-          <p>Post ID: ${postId}</p>
-        </body>
-        </html>
-      `);
-    } else if (action === 'retry') {
-      const result = await automationController.handlePostRetry(postId, emailId);
-      res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Post Retry</title>
-          <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-            .warning { color: #ffc107; font-size: 24px; }
-            .message { margin: 20px 0; }
-          </style>
-        </head>
-        <body>
-          <div class="warning">🔄 Post Retry Initiated</div>
-          <div class="message">New content is being generated and a new approval email will be sent.</div>
-          <p>Post ID: ${postId}</p>
-          <p>Retry Count: ${result.retryCount}</p>
-        </body>
-        </html>
-      `);
-    } else {
-      res.status(400).send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>Invalid Action</title>
-          <style>
-            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-            .error { color: #dc3545; font-size: 24px; }
-          </style>
-        </head>
-        <body>
-          <div class="error">❌ Invalid Action</div>
-          <p>Please use: ?action=accept, ?action=decline, or ?action=retry</p>
-        </body>
-        </html>
-      `);
-    }
+    const result = await automationController.handlePostApproval(postId, emailId);
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Post Approved</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+          .success { color: #28a745; font-size: 24px; }
+          .message { margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="success">✅ Post Approved Successfully!</div>
+        <div class="message">Your post has been published to Instagram.</div>
+        <p>Post ID: ${postId}</p>
+      </body>
+      </html>
+    `);
   } catch (error) {
     console.error('Error processing approval action:', error);
+    res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Action Failed</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+          .error { color: #dc3545; font-size: 24px; }
+          .message { margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="error">❌ Action Failed</div>
+        <div class="message">${error.message}</div>
+      </body>
+      </html>
+    `);
+  }
+});
+
+// Handle post approval - decline action
+router.get('/approve/:postId/:emailId/decline', async (req, res) => {
+  try {
+    const { postId, emailId } = req.params;
+    await automationController.handlePostDecline(postId, emailId);
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Post Declined</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+          .info { color: #17a2b8; font-size: 24px; }
+          .message { margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="info">ℹ️ Post Declined</div>
+        <div class="message">This post has been declined and will not be published.</div>
+        <p>Post ID: ${postId}</p>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('Error processing decline action:', error);
+    res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Action Failed</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+          .error { color: #dc3545; font-size: 24px; }
+          .message { margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="error">❌ Action Failed</div>
+        <div class="message">${error.message}</div>
+      </body>
+      </html>
+    `);
+  }
+});
+
+// Handle post approval - retry action
+router.get('/approve/:postId/:emailId/retry', async (req, res) => {
+  try {
+    const { postId, emailId } = req.params;
+    const result = await automationController.handlePostRetry(postId, emailId);
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Post Retry</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+          .warning { color: #ffc107; font-size: 24px; }
+          .message { margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="warning">🔄 Post Retry Initiated</div>
+        <div class="message">New content is being generated and a new approval email will be sent.</div>
+        <p>Post ID: ${postId}</p>
+        <p>Retry Count: ${result.retryCount}</p>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('Error processing retry action:', error);
     res.status(500).send(`
       <!DOCTYPE html>
       <html>
@@ -226,6 +255,59 @@ router.post('/cleanup/posts', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to cleanup posts',
+      error: error.message
+    });
+  }
+});
+
+// Job posting endpoints
+router.post('/jobs/post', async (req, res) => {
+  try {
+    const result = await automationController.postJobUpdate();
+    res.json({
+      success: true,
+      message: 'Job update posted successfully',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error posting job update:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to post job update',
+      error: error.message
+    });
+  }
+});
+
+router.get('/jobs/status', async (req, res) => {
+  try {
+    const status = automationController.getJobPostingStatus();
+    res.json({
+      success: true,
+      data: status
+    });
+  } catch (error) {
+    console.error('Error getting job posting status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get job posting status',
+      error: error.message
+    });
+  }
+});
+
+router.get('/jobs/test', async (req, res) => {
+  try {
+    const result = await automationController.testJobFetching();
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error testing job fetching:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to test job fetching',
       error: error.message
     });
   }

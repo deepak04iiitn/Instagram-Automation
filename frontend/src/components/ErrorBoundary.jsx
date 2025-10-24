@@ -28,72 +28,55 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 flex items-center justify-center p-4">
           <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-md w-full bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700/50 p-8"
           >
-            {/* Header */}
-            <div className="bg-gradient-to-r from-red-500 to-orange-600 p-6">
-              <motion.div
-                animate={{ rotate: [0, -10, 10, -10, 0] }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4"
-              >
-                <AlertTriangle className="h-8 w-8 text-red-600" />
-              </motion.div>
-              <h2 className="text-2xl font-bold text-white text-center">
-                Oops! Something went wrong
-              </h2>
-            </div>
+            <div className="flex flex-col items-center text-center space-y-6">
+              <div className="p-4 bg-red-500/10 rounded-full border border-red-500/20">
+                <AlertTriangle className="h-12 w-12 text-red-400" />
+              </div>
 
-            {/* Content */}
-            <div className="p-6 space-y-4">
-              <p className="text-gray-600 text-center">
-                An error occurred while rendering the dashboard. Please try refreshing the page or return to home.
-              </p>
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold text-gray-100">Something went wrong</h2>
+                <p className="text-gray-400">
+                  An error occurred while rendering the dashboard. Please try refreshing the page or return to home.
+                </p>
+              </div>
 
               {process.env.NODE_ENV === 'development' && this.state.error && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl overflow-auto max-h-48"
-                >
-                  <p className="text-xs font-mono text-red-800 break-all">
+                <div className="w-full p-4 bg-gray-900/50 rounded-lg border border-gray-700/30">
+                  <p className="text-xs text-red-400 font-mono break-all">
                     {this.state.error.toString()}
                   </p>
-                </motion.div>
+                </div>
               )}
 
-              {/* Actions */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={this.handleReset}
-                  className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all"
+                  className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-blue-500/20"
                 >
                   <RefreshCw className="h-4 w-4" />
                   <span>Refresh Page</span>
                 </motion.button>
-                
+
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={this.handleHome}
-                  className="flex-1 flex items-center justify-center space-x-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all"
+                  className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-xl font-medium transition-all"
                 >
                   <Home className="h-4 w-4" />
                   <span>Go Home</span>
                 </motion.button>
               </div>
-            </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-              <p className="text-xs text-gray-500 text-center">
+              <p className="text-xs text-gray-500">
                 If this problem persists, please contact support
               </p>
             </div>

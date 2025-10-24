@@ -28,33 +28,42 @@ const __dirname = dirname(__filename);
 // Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Database connection
+// Database connection with improved configuration
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/instagram-automation', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 30000, // 30 seconds timeout
+  socketTimeoutMS: 45000, // 45 seconds socket timeout
+  connectTimeoutMS: 30000, // 30 seconds connection timeout
+  maxPoolSize: 10, // Maintain up to 10 socket connections
+  minPoolSize: 5, // Maintain a minimum of 5 socket connections
+  maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
+  bufferCommands: false, // Disable mongoose buffering
+  retryWrites: true, // Retry failed writes
+  retryReads: true, // Retry failed reads
 })
 .then(() => {
-  console.log('Connected to MongoDB');
+  console.log('✅ Connected to MongoDB');
+  
+  // Set up connection event listeners
+  mongoose.connection.on('error', (err) => {
+    console.error('❌ MongoDB connection error:', err);
+  });
+  
+  mongoose.connection.on('disconnected', () => {
+    console.warn('⚠️ MongoDB disconnected');
+  });
+  
+  mongoose.connection.on('reconnected', () => {
+    console.log('🔄 MongoDB reconnected');
+  });
 })
 .catch((error) => {
-  console.error('MongoDB connection error:', error);
+  console.error('❌ MongoDB connection error:', error);
   process.exit(1);
 });
 
 // Routes
 app.use('/api', automationRoutes);
 
-// Direct approval route alias to ensure availability
-app.get('/api/approve/:postId/:emailId/accept', async (req, res) => {
-  try {
-    const controller = new AutomationController();
-    const { postId, emailId } = req.params;
-    const result = await controller.handlePostApproval(postId, emailId);
-    res.json({ success: true, data: { id: result._id } });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -69,11 +78,28 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     message: 'Instagram Automation API',
-    version: '1.0.0',
+    version: '2.0.0',
+    features: [
+      'Daily content automation (10 AM IST)',
+      'Job posting automation (5 PM IST)',
+      'Email approval system',
+      'Image generation and hosting',
+      'Instagram posting',
+      'Job deduplication',
+      'IST timezone support'
+    ],
     endpoints: {
       health: '/health',
       automation: '/api',
+      jobPosting: '/api/jobs',
       docs: '/api-docs'
+    },
+    schedules: {
+      dailyAutomation: '10:00 AM IST',
+      jobPosting: '5:00 PM IST',
+      imageCleanup: '2:00 AM IST',
+      postCleanup: '3:00 AM IST (Sundays)',
+      jobMemoryCleanup: '1:00 AM IST'
     }
   });
 });
