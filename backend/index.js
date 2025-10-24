@@ -111,10 +111,9 @@ app.use((error, req, res, next) => {
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, 'frontend/dist')));
 
-// SPA fallback - serve index.html for all other routes
-// This handles client-side routing
-app.use((req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
+// Handle frontend routes - only catch routes that don't start with /backend
+app.get(/^(?!\/backend).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
 });
 
 // Initialize automation controller and scheduler
