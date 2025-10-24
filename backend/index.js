@@ -26,20 +26,19 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Database connection with improved configuration
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/instagram-automation', {
-  serverSelectionTimeoutMS: 30000, // 30 seconds timeout
-  socketTimeoutMS: 45000, // 45 seconds socket timeout
-  connectTimeoutMS: 30000, // 30 seconds connection timeout
-  maxPoolSize: 10, // Maintain up to 10 socket connections
-  minPoolSize: 5, // Maintain a minimum of 5 socket connections
-  maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
-  bufferCommands: false, // Disable mongoose buffering
-  retryWrites: true, // Retry failed writes
-  retryReads: true, // Retry failed reads
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 30000,
+  maxPoolSize: 10,
+  minPoolSize: 5,
+  maxIdleTimeMS: 30000,
+  bufferCommands: false,
+  retryWrites: true,
+  retryReads: true,
 })
 .then(() => {
   console.log('✅ Connected to MongoDB');
   
-  // Set up connection event listeners
   mongoose.connection.on('error', (err) => {
     console.error('❌ MongoDB connection error:', err);
   });
@@ -57,9 +56,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/instagram
   process.exit(1);
 });
 
-// Routes
+// API Routes - Define these FIRST
 app.use('/api', automationRoutes);
-
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -70,8 +68,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
+// Root API endpoint
+app.get('/api-info', (req, res) => {
   res.json({
     message: 'Instagram Automation API',
     version: '2.0.0',
@@ -110,12 +108,13 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 404 handler (catch-all)
+// Serve frontend static files
+app.use(express.static(path.join(__dirname, 'frontend/dist')));
+
+// SPA fallback - serve index.html for all other routes
+// This handles client-side routing
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Endpoint not found'
-  });
+  res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
 });
 
 // Initialize automation controller and scheduler
@@ -126,13 +125,8 @@ async function initializeServices() {
   try {
     console.log('Initializing services...');
     
-    // Initialize automation controller
     automationController = new AutomationController();
-    
-    // Initialize scheduler
     schedulerService = new SchedulerService(automationController);
-    
-    // Start scheduler
     schedulerService.start();
     
     console.log('Services initialized successfully');
@@ -142,20 +136,11 @@ async function initializeServices() {
   }
 }
 
-
-// Serve frontend files
-app.use(express.static(path.join(__dirname, '/frontend/dist')));
-app.get('/*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend', 'dist', 'index.html'));
-});
-
-
 // Start server
 app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   
-  // Initialize services after server starts
   await initializeServices();
 });
 

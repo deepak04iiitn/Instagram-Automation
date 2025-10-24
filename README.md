@@ -1,22 +1,36 @@
 # Instagram Automation System
 
-A complete Node.js automation system for Instagram content posting using the Instagram Graph API (Business Account) and Gemini API.
+A complete Node.js automation system for Instagram content posting and job posting automation using the Instagram Graph API (Business Account) and Gemini API.
 
 ## 🚀 Features
 
+### Content Automation
 - **Daily Content Generation**: Automatically generates content based on the day of the week
 - **AI-Powered Content**: Uses Google's Gemini API for intelligent content creation
 - **Email Approval System**: Sends approval emails with Accept/Decline/Retry buttons
 - **Image Generation**: Converts text content to Instagram-ready images
 - **Instagram Integration**: Posts directly to Instagram Business Account
 - **Google Drive Storage**: Automatically uploads images to organized Google Drive folders
-- **Automated Scheduling**: Runs daily at 10 AM using node-cron
+- **Automated Scheduling**: Runs daily at 10 AM IST using node-cron
+
+### Job Posting Automation
+- **Automated Job Posting**: Posts job opportunities daily at 5 PM IST
+- **Job Deduplication**: Prevents posting the same job multiple times
+- **Smart Job Filtering**: Filters out irrelevant or duplicate job postings
+- **Professional Job Images**: Generates attractive job posting images with company logos
+- **Job Memory Management**: Tracks posted jobs to avoid duplicates
+- **Flexible Job Sources**: Supports multiple job data sources
+
+### System Features
 - **Monitoring Dashboard**: Real-time React dashboard for system monitoring and control
 - **Analytics & Charts**: Visual analytics with post performance metrics
 - **Error Handling**: Comprehensive error handling and notifications
+- **Automated Cleanup**: Scheduled cleanup of old images, posts, and memory
+- **IST Timezone Support**: All scheduling optimized for Indian Standard Time
 
-## 📅 Daily Topics
+## 📅 Daily Schedule
 
+### Content Topics (10:00 AM IST)
 - **Sunday**: Coding question of the day
 - **Monday**: Interview experience
 - **Tuesday**: UI Testing
@@ -24,6 +38,12 @@ A complete Node.js automation system for Instagram content posting using the Ins
 - **Thursday**: Performance Testing
 - **Friday**: SDET Tools
 - **Saturday**: AI in Testing
+
+### Job Posting (5:00 PM IST)
+- **Daily**: Job opportunities posting
+- **Smart Filtering**: Automatically filters relevant jobs
+- **Deduplication**: Prevents posting duplicate jobs
+- **Professional Format**: Creates attractive job posting images
 
 ## 🛠️ Tech Stack
 
@@ -130,6 +150,15 @@ Before running this application, make sure you have:
 2. Generate an App Password
 3. Use your Gmail address and app password in `.env`
 
+### 5. Job Posting Configuration
+The job posting system requires additional configuration for job data sources:
+
+1. **Job Data Sources**: Configure your job posting data sources in the `JobPostingService`
+2. **Job Filtering**: Set up filters to exclude irrelevant or duplicate jobs
+3. **Image Templates**: Customize job posting image templates in `HtmlImageGenerationService`
+4. **Posting Schedule**: Job posting runs automatically at 5 PM IST daily
+5. **Memory Management**: System automatically manages job memory to prevent duplicates
+
 ## 🚀 Running the Application
 
 1. **Start MongoDB** (if running locally)
@@ -155,10 +184,13 @@ Before running this application, make sure you have:
 
 4. **Test the automation**
    ```bash
-   # Manual trigger via API
+   # Manual trigger content automation via API
    curl -X POST http://localhost:3000/api/run
    
-   # Or use the dashboard "Run Now" button
+   # Manual trigger job posting via API
+   curl -X POST http://localhost:3000/api/jobs/run
+   
+   # Or use the dashboard "Run Now" buttons
    ```
 
 ## 📊 Monitoring Dashboard
@@ -166,18 +198,20 @@ Before running this application, make sure you have:
 The system includes a comprehensive React-based monitoring dashboard accessible at `http://localhost:5173`:
 
 ### Dashboard Features
-- **Real-time Monitoring**: Live system status and post updates
+- **Real-time Monitoring**: Live system status and post updates for both content and job postings
 - **Analytics Charts**: Visual representation of post performance and status distribution
-- **Control Panel**: Manual operations including automation triggers and cleanup
+- **Control Panel**: Manual operations including automation triggers, job posting, and cleanup
 - **Recent Posts**: List of recent posts with detailed status and content preview
+- **Job Posting Status**: Monitor job posting automation and recent job posts
 - **System Health**: Real-time monitoring of all services and connections
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
 
 ### Dashboard Components
-- **Status Cards**: Key metrics and system indicators
+- **Status Cards**: Key metrics and system indicators for content and job posting
 - **Analytics Charts**: Pie charts for status distribution, bar charts for topic analysis
-- **Control Panel**: Manual automation trigger, cleanup operations, system refresh
+- **Control Panel**: Manual automation trigger, job posting trigger, cleanup operations, system refresh
 - **Recent Posts**: Expandable post list with status indicators and action buttons
+- **Job Posting Monitor**: Track job posting automation status and recent job posts
 - **Error Handling**: Comprehensive error boundaries and user notifications
 
 ### Getting Started with Dashboard
@@ -188,11 +222,17 @@ The system includes a comprehensive React-based monitoring dashboard accessible 
 
 ## 📡 API Endpoints
 
-### Automation Endpoints
-- `POST /api/run` - Manually trigger automation
+### Content Automation Endpoints
+- `POST /api/run` - Manually trigger content automation
 - `GET /api/status` - Get automation status
 - `GET /api/posts` - Get posts with pagination
 - `GET /api/posts/:postId` - Get specific post
+
+### Job Posting Endpoints
+- `POST /api/jobs/run` - Manually trigger job posting
+- `GET /api/jobs/status` - Get job posting status
+- `GET /api/jobs/posts` - Get job posts with pagination
+- `POST /api/jobs/post` - Post a specific job manually
 
 ### Approval Endpoints
 - `GET /api/approve/:postId/:emailId/accept` - Accept post
@@ -201,12 +241,14 @@ The system includes a comprehensive React-based monitoring dashboard accessible 
 
 ### Utility Endpoints
 - `GET /health` - Health check
-- `POST /api/cleanup/images` - Clean up old images
-- `POST /api/cleanup/posts` - Clean up old posts
+- `POST /api/cleanup/images` - Clean up old images (2 AM IST daily)
+- `POST /api/cleanup/posts` - Clean up old posts (3 AM IST Sundays)
+- `POST /api/cleanup/jobs` - Clean up job memory (1 AM IST daily)
 
-## 🔄 Automation Flow
+## 🔄 Automation Flows
 
-1. **Daily Trigger**: Scheduler runs at 10 AM daily
+### Content Automation Flow (10:00 AM IST)
+1. **Daily Trigger**: Scheduler runs at 10 AM IST daily
 2. **Content Generation**: Gemini API generates content based on day's topic
 3. **Email Approval**: Admin receives email with content and approval buttons
 4. **Admin Action**:
@@ -214,6 +256,20 @@ The system includes a comprehensive React-based monitoring dashboard accessible 
    - **Decline**: Stops process for the day
    - **Retry**: Generates new content and sends new approval email
 5. **Success Notification**: Admin receives confirmation email
+
+### Job Posting Flow (5:00 PM IST)
+1. **Daily Trigger**: Scheduler runs at 5 PM IST daily
+2. **Job Data Retrieval**: Fetches job opportunities from configured sources
+3. **Job Filtering**: Filters out duplicate and irrelevant jobs
+4. **Image Generation**: Creates professional job posting images
+5. **Instagram Posting**: Posts job opportunities directly to Instagram
+6. **Memory Update**: Updates job memory to prevent future duplicates
+7. **Success Logging**: Logs successful job postings for tracking
+
+### Automated Cleanup Schedule
+- **2:00 AM IST Daily**: Image cleanup (removes images older than 24 hours)
+- **3:00 AM IST Sundays**: Post cleanup (removes failed/declined posts older than 30 days)
+- **1:00 AM IST Daily**: Job memory cleanup (maintains optimal memory usage)
 
 ## 📁 Project Structure
 
@@ -233,11 +289,20 @@ instagram-automation/
 │   │   ├── geminiService.js
 │   │   ├── emailService.js
 │   │   ├── imageGenerationService.js
+│   │   ├── htmlImageGenerationService.js
+│   │   ├── jobPostingService.js
 │   │   ├── googleDriveService.js
 │   │   ├── instagramService.js
 │   │   └── schedulerService.js
+│   ├── scripts/
+│   │   ├── runDailyAutomation.mjs
+│   │   ├── manualJobPost.mjs
+│   │   ├── quickJobPost.mjs
+│   │   └── testJobPosting.mjs
 │   ├── uploads/
 │   │   └── images/
+│   ├── backups/
+│   │   └── post_backup_*.json
 │   ├── index.js
 │   └── package.json
 ├── frontend/
@@ -262,7 +327,11 @@ instagram-automation/
 │   └── README.md
 ├── env.example
 ├── package.json
-└── README.md
+├── README.md
+├── SETUP.md
+├── SETUP_AUTOMATED_POSTING.md
+├── AUTOMATED_POSTING_SYSTEM.md
+└── MANUAL_SCRIPTS.md
 ```
 
 ## 🐛 Troubleshooting
@@ -331,6 +400,30 @@ For support, please:
 2. Review the logs
 3. Create an issue with detailed information
 4. Include error messages and steps to reproduce
+
+## 🛠️ Manual Scripts
+
+The system includes several manual scripts for testing and maintenance:
+
+### Available Scripts
+- `backend/scripts/runDailyAutomation.mjs` - Run daily content automation manually
+- `backend/scripts/manualJobPost.mjs` - Post a specific job manually
+- `backend/scripts/quickJobPost.mjs` - Quick job posting for testing
+- `backend/scripts/testJobPosting.mjs` - Test job posting functionality
+- `backend/scripts/testDatabaseFix.mjs` - Test database operations
+- `backend/scripts/testEmailFormatting.mjs` - Test email formatting
+
+### Usage
+```bash
+# Run daily automation manually
+node backend/scripts/runDailyAutomation.mjs
+
+# Post a job manually
+node backend/scripts/manualJobPost.mjs
+
+# Test job posting
+node backend/scripts/testJobPosting.mjs
+```
 
 ## 🔄 Updates
 
