@@ -2,11 +2,13 @@ import express from 'express';
 const router = express.Router();
 import AutomationController from '../controllers/automationController.js';
 
-const automationController = new AutomationController();
+// Create a new controller instance for each request to avoid connection reuse issues
+const getAutomationController = () => new AutomationController();
 
 // Manual trigger for automation (for testing)
 router.post('/run', async (req, res) => {
   try {
+    const automationController = getAutomationController();
     const result = await automationController.runDailyAutomation();
     res.json({
       success: true,
@@ -27,6 +29,7 @@ router.post('/run', async (req, res) => {
 router.get('/approve/:postId/:emailId/accept', async (req, res) => {
   try {
     const { postId, emailId } = req.params;
+    const automationController = getAutomationController();
     const result = await automationController.handlePostApproval(postId, emailId);
     res.send(`
       <!DOCTYPE html>
@@ -72,6 +75,7 @@ router.get('/approve/:postId/:emailId/accept', async (req, res) => {
 router.get('/approve/:postId/:emailId/decline', async (req, res) => {
   try {
     const { postId, emailId } = req.params;
+    const automationController = getAutomationController();
     await automationController.handlePostDecline(postId, emailId);
     res.send(`
       <!DOCTYPE html>
@@ -117,6 +121,7 @@ router.get('/approve/:postId/:emailId/decline', async (req, res) => {
 router.get('/approve/:postId/:emailId/retry', async (req, res) => {
   try {
     const { postId, emailId } = req.params;
+    const automationController = getAutomationController();
     const result = await automationController.handlePostRetry(postId, emailId);
     res.send(`
       <!DOCTYPE html>
@@ -162,6 +167,7 @@ router.get('/approve/:postId/:emailId/retry', async (req, res) => {
 // Get automation status
 router.get('/status', async (req, res) => {
   try {
+    const automationController = getAutomationController();
     const status = await automationController.getAutomationStatus();
     res.json({
       success: true,
@@ -183,6 +189,7 @@ router.get('/posts', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
 
+    const automationController = getAutomationController();
     const result = await automationController.getPosts(page, limit);
     res.json({
       success: true,
@@ -202,6 +209,7 @@ router.get('/posts', async (req, res) => {
 router.get('/posts/:postId', async (req, res) => {
   try {
     const { postId } = req.params;
+    const automationController = getAutomationController();
     const post = await automationController.getPostById(postId);
 
     if (!post) {
@@ -228,6 +236,7 @@ router.get('/posts/:postId', async (req, res) => {
 // Get posts needing manual approval (when emails fail)
 router.get('/posts/manual-approval', async (req, res) => {
   try {
+    const automationController = getAutomationController();
     const posts = await automationController.getPostsNeedingManualApproval();
     res.json({
       success: true,
@@ -248,6 +257,7 @@ router.get('/posts/manual-approval', async (req, res) => {
 router.get('/approve/:postId/manual', async (req, res) => {
   try {
     const { postId } = req.params;
+    const automationController = getAutomationController();
     const result = await automationController.handlePostApproval(postId, 'manual');
     res.send(`
       <!DOCTYPE html>
@@ -296,6 +306,7 @@ router.get('/approve/:postId/manual', async (req, res) => {
 // Cleanup endpoints
 router.post('/cleanup/images', async (req, res) => {
   try {
+    const automationController = getAutomationController();
     await automationController.cleanupOldImages();
     res.json({
       success: true,
@@ -313,6 +324,7 @@ router.post('/cleanup/images', async (req, res) => {
 
 router.post('/cleanup/posts', async (req, res) => {
   try {
+    const automationController = getAutomationController();
     await automationController.cleanupOldPosts();
     res.json({
       success: true,
@@ -331,6 +343,7 @@ router.post('/cleanup/posts', async (req, res) => {
 // Job posting endpoints
 router.post('/jobs/post', async (req, res) => {
   try {
+    const automationController = getAutomationController();
     const result = await automationController.postJobUpdate();
     res.json({
       success: true,
@@ -349,6 +362,7 @@ router.post('/jobs/post', async (req, res) => {
 
 router.get('/jobs/status', async (req, res) => {
   try {
+    const automationController = getAutomationController();
     const status = automationController.getJobPostingStatus();
     res.json({
       success: true,
@@ -366,6 +380,7 @@ router.get('/jobs/status', async (req, res) => {
 
 router.get('/jobs/test', async (req, res) => {
   try {
+    const automationController = getAutomationController();
     const result = await automationController.testJobFetching();
     res.json({
       success: true,

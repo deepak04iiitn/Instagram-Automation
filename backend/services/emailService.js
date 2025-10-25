@@ -15,9 +15,9 @@ class EmailService {
       connectionTimeout: 60000, // 60 seconds
       greetingTimeout: 30000,   // 30 seconds
       socketTimeout: 60000,     // 60 seconds
-      pool: true,               // Use connection pooling
-      maxConnections: 5,        // Maximum connections in pool
-      maxMessages: 100,         // Maximum messages per connection
+      pool: false,              // Disable connection pooling for better reliability
+      maxConnections: 1,        // Single connection
+      maxMessages: 1,           // One message per connection
       rateDelta: 20000,         // Rate limiting: 20 seconds
       rateLimit: 5,             // Maximum 5 messages per rateDelta
       // Retry configuration
@@ -120,6 +120,18 @@ class EmailService {
    */
   async verifyConnection() {
     try {
+      // Close any existing connections before verifying
+      if (this.transporter && this.transporter.close) {
+        try {
+          this.transporter.close();
+        } catch (closeError) {
+          // Ignore close errors
+        }
+      }
+      
+      // Recreate transporter for fresh connection
+      this.recreateTransporter();
+      
       await this.transporter.verify();
       return true;
     } catch (error) {
@@ -158,7 +170,9 @@ class EmailService {
    */
   recreateTransporter() {
     try {
-      this.transporter.close();
+      if (this.transporter && this.transporter.close) {
+        this.transporter.close();
+      }
     } catch (error) {
       console.warn('Warning: Error closing transporter:', error.message);
     }
@@ -175,9 +189,9 @@ class EmailService {
       connectionTimeout: 60000, // 60 seconds
       greetingTimeout: 30000,   // 30 seconds
       socketTimeout: 60000,     // 60 seconds
-      pool: true,               // Use connection pooling
-      maxConnections: 5,        // Maximum connections in pool
-      maxMessages: 100,         // Maximum messages per connection
+      pool: false,              // Disable connection pooling for better reliability
+      maxConnections: 1,        // Single connection
+      maxMessages: 1,           // One message per connection
       rateDelta: 20000,         // Rate limiting: 20 seconds
       rateLimit: 5,             // Maximum 5 messages per rateDelta
       // Retry configuration
@@ -191,6 +205,20 @@ class EmailService {
     });
     
     console.log('✅ Email transporter recreated successfully');
+  }
+
+  /**
+   * Clean up email service resources
+   */
+  cleanup() {
+    try {
+      if (this.transporter && this.transporter.close) {
+        this.transporter.close();
+        console.log('✅ Email service cleaned up successfully');
+      }
+    } catch (error) {
+      console.warn('Warning: Error during email service cleanup:', error.message);
+    }
   }
 
   generateApprovalEmailHTML(post, approvalUrl) {

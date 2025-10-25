@@ -162,6 +162,9 @@ class AutomationController {
     } catch (error) {
       console.error('Error in daily automation:', error);
       throw error;
+    } finally {
+      // Clean up email service resources
+      this.emailService.cleanup();
     }
   }
 
@@ -429,6 +432,9 @@ class AutomationController {
     } catch (error) {
       console.error('Error handling post retry:', error);
       throw error;
+    } finally {
+      // Clean up email service resources
+      this.emailService.cleanup();
     }
   }
 
@@ -489,6 +495,9 @@ class AutomationController {
       console.error('Error:', error.message);
       console.error('Stack:', error.stack);
       console.error('================================================');
+    } finally {
+      // Clean up email service resources
+      this.emailService.cleanup();
     }
   }
 
