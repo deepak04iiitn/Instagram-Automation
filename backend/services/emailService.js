@@ -9,7 +9,7 @@ class EmailService {
     const greetingTimeout = isProduction ? 15000 : 30000;   // 15s in production, 30s in dev
     const socketTimeout = isProduction ? 30000 : 60000;     // 30s in production, 60s in dev
     
-    this.transporter = nodemailer.createTransporter({
+    this.transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
       port: process.env.EMAIL_PORT,
       secure: false,
