@@ -7,7 +7,7 @@ class GeminiService {
       throw new Error('GEMINI_API_KEY is required');
     }
     this.genAI = new GoogleGenerativeAI(this.apiKey);
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
     
     // Standard instruction to prepend to all prompts
     this.standardInstruction = `IMPORTANT INSTRUCTIONS:
