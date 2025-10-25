@@ -62,7 +62,7 @@ class EmailService {
   }
 
   /**
-   * Send email with retry logic and connection verification
+   * Send email with retry logic (no connection verification)
    * @param {Function} emailFunction - The email sending function
    * @param {string} emailType - Type of email for logging
    * @returns {Promise<any>} Email result
@@ -72,10 +72,7 @@ class EmailService {
     
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        // Verify connection before sending
-        await this.verifyConnection();
-        
-        // Execute the email function
+        // Execute the email function directly without verification
         const result = await emailFunction();
         
         if (attempt > 1) {
@@ -112,32 +109,6 @@ class EmailService {
     }
     
     throw new Error(`Failed to send ${emailType} after ${this.maxRetries} attempts: ${lastError.message}`);
-  }
-
-  /**
-   * Verify SMTP connection
-   * @returns {Promise<boolean>} True if connection is verified
-   */
-  async verifyConnection() {
-    try {
-      // Close any existing connections before verifying
-      if (this.transporter && this.transporter.close) {
-        try {
-          this.transporter.close();
-        } catch (closeError) {
-          // Ignore close errors
-        }
-      }
-      
-      // Recreate transporter for fresh connection
-      this.recreateTransporter();
-      
-      await this.transporter.verify();
-      return true;
-    } catch (error) {
-      console.warn('⚠️ SMTP connection verification failed:', error.message);
-      throw error;
-    }
   }
 
   /**
