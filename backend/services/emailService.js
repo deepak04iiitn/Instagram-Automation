@@ -3,12 +3,6 @@ import { v4 as uuidv4 } from 'uuid';
 
 class EmailService {
   constructor() {
-    // Production-optimized timeout settings
-    const isProduction = process.env.NODE_ENV === 'production';
-    const connectionTimeout = isProduction ? 30000 : 60000; // 30s in production, 60s in dev
-    const greetingTimeout = isProduction ? 15000 : 30000;   // 15s in production, 30s in dev
-    const socketTimeout = isProduction ? 30000 : 60000;     // 30s in production, 60s in dev
-    
     this.transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
       port: process.env.EMAIL_PORT,
@@ -17,32 +11,29 @@ class EmailService {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
       },
-      // Production-optimized timeout and connection settings
-      connectionTimeout: connectionTimeout,
-      greetingTimeout: greetingTimeout,
-      socketTimeout: socketTimeout,
+      // Enhanced timeout and connection settings
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 30000,   // 30 seconds
+      socketTimeout: 60000,     // 60 seconds
       pool: true,               // Use connection pooling
-      maxConnections: isProduction ? 3 : 5,        // Fewer connections in production
-      maxMessages: 50,          // Reduced messages per connection
+      maxConnections: 5,        // Maximum connections in pool
+      maxMessages: 100,         // Maximum messages per connection
       rateDelta: 20000,         // Rate limiting: 20 seconds
-      rateLimit: 3,             // Reduced rate limit for production
+      rateLimit: 5,             // Maximum 5 messages per rateDelta
       // Retry configuration
-      retryDelay: 3000,         // 3 seconds between retries (faster)
-      retryAttempts: 2,         // Fewer retry attempts in production
+      retryDelay: 5000,         // 5 seconds between retries
+      retryAttempts: 3,         // Maximum retry attempts
       // TLS options for better security
       tls: {
         rejectUnauthorized: false,
         ciphers: 'SSLv3'
-      },
-      // Additional production settings
-      debug: isProduction ? false : true,  // Disable debug in production
-      logger: isProduction ? false : true  // Disable logger in production
+      }
     });
     
     this.adminEmail = process.env.ADMIN_EMAIL;
     this.appUrl = process.env.APP_URL || 'http://localhost:3000';
-    this.maxRetries = isProduction ? 2 : 3;  // Fewer retries in production
-    this.retryDelay = isProduction ? 3000 : 5000; // Faster retries in production
+    this.maxRetries = 3;
+    this.retryDelay = 5000; // 5 seconds
   }
 
   async sendApprovalEmail(post) {
@@ -70,9 +61,8 @@ class EmailService {
     }, 'approval email');
   }
 
-
   /**
-   * Send email with retry logic (no connection verification)
+   * Send email with retry logic and connection verification
    * @param {Function} emailFunction - The email sending function
    * @param {string} emailType - Type of email for logging
    * @returns {Promise<any>} Email result
@@ -82,7 +72,10 @@ class EmailService {
     
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        // Execute the email function directly (no connection verification)
+        // Verify connection before sending
+        await this.verifyConnection();
+        
+        // Execute the email function
         const result = await emailFunction();
         
         if (attempt > 1) {
@@ -121,6 +114,19 @@ class EmailService {
     throw new Error(`Failed to send ${emailType} after ${this.maxRetries} attempts: ${lastError.message}`);
   }
 
+  /**
+   * Verify SMTP connection
+   * @returns {Promise<boolean>} True if connection is verified
+   */
+  async verifyConnection() {
+    try {
+      await this.transporter.verify();
+      return true;
+    } catch (error) {
+      console.warn('⚠️ SMTP connection verification failed:', error.message);
+      throw error;
+    }
+  }
 
   /**
    * Check if error is a connection-related error
@@ -157,12 +163,6 @@ class EmailService {
       console.warn('Warning: Error closing transporter:', error.message);
     }
     
-    // Use the same production-optimized settings as constructor
-    const isProduction = process.env.NODE_ENV === 'production';
-    const connectionTimeout = isProduction ? 30000 : 60000;
-    const greetingTimeout = isProduction ? 15000 : 30000;
-    const socketTimeout = isProduction ? 30000 : 60000;
-    
     this.transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
       port: process.env.EMAIL_PORT,
@@ -171,23 +171,23 @@ class EmailService {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
       },
-      // Production-optimized timeout and connection settings
-      connectionTimeout: connectionTimeout,
-      greetingTimeout: greetingTimeout,
-      socketTimeout: socketTimeout,
-      pool: true,
-      maxConnections: isProduction ? 3 : 5,
-      maxMessages: 50,
-      rateDelta: 20000,
-      rateLimit: 3,
-      retryDelay: 3000,
-      retryAttempts: 2,
+      // Enhanced timeout and connection settings
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 30000,   // 30 seconds
+      socketTimeout: 60000,     // 60 seconds
+      pool: true,               // Use connection pooling
+      maxConnections: 5,        // Maximum connections in pool
+      maxMessages: 100,         // Maximum messages per connection
+      rateDelta: 20000,         // Rate limiting: 20 seconds
+      rateLimit: 5,             // Maximum 5 messages per rateDelta
+      // Retry configuration
+      retryDelay: 5000,         // 5 seconds between retries
+      retryAttempts: 3,         // Maximum retry attempts
+      // TLS options for better security
       tls: {
         rejectUnauthorized: false,
         ciphers: 'SSLv3'
-      },
-      debug: isProduction ? false : true,
-      logger: isProduction ? false : true
+      }
     });
     
     console.log('✅ Email transporter recreated successfully');
