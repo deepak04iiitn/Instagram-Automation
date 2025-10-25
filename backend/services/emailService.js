@@ -3,22 +3,50 @@ import { v4 as uuidv4 } from 'uuid';
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransport({
+    // Production-optimized timeout settings
+    const isProduction = process.env.NODE_ENV === 'production';
+    const connectionTimeout = isProduction ? 30000 : 60000; // 30s in production, 60s in dev
+    const greetingTimeout = isProduction ? 15000 : 30000;   // 15s in production, 30s in dev
+    const socketTimeout = isProduction ? 30000 : 60000;     // 30s in production, 60s in dev
+    
+    this.transporter = nodemailer.createTransporter({
       host: process.env.EMAIL_HOST,
       port: process.env.EMAIL_PORT,
       secure: false,
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-      }
+      },
+      // Production-optimized timeout and connection settings
+      connectionTimeout: connectionTimeout,
+      greetingTimeout: greetingTimeout,
+      socketTimeout: socketTimeout,
+      pool: true,               // Use connection pooling
+      maxConnections: isProduction ? 3 : 5,        // Fewer connections in production
+      maxMessages: 50,          // Reduced messages per connection
+      rateDelta: 20000,         // Rate limiting: 20 seconds
+      rateLimit: 3,             // Reduced rate limit for production
+      // Retry configuration
+      retryDelay: 3000,         // 3 seconds between retries (faster)
+      retryAttempts: 2,         // Fewer retry attempts in production
+      // TLS options for better security
+      tls: {
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
+      },
+      // Additional production settings
+      debug: isProduction ? false : true,  // Disable debug in production
+      logger: isProduction ? false : true  // Disable logger in production
     });
     
     this.adminEmail = process.env.ADMIN_EMAIL;
     this.appUrl = process.env.APP_URL || 'http://localhost:3000';
+    this.maxRetries = isProduction ? 2 : 3;  // Fewer retries in production
+    this.retryDelay = isProduction ? 3000 : 5000; // Faster retries in production
   }
 
   async sendApprovalEmail(post) {
-    try {
+    return await this.sendEmailWithRetry(async () => {
       const emailId = uuidv4();
       const approvalUrl = `${this.appUrl}/api/approve/${post._id}/${emailId}`;
       
@@ -39,10 +67,130 @@ class EmailService {
         messageId: result.messageId,
         emailId: emailId
       };
-    } catch (error) {
-      console.error('Error sending approval email:', error);
-      throw new Error(`Failed to send approval email: ${error.message}`);
+    }, 'approval email');
+  }
+
+
+  /**
+   * Send email with retry logic (no connection verification)
+   * @param {Function} emailFunction - The email sending function
+   * @param {string} emailType - Type of email for logging
+   * @returns {Promise<any>} Email result
+   */
+  async sendEmailWithRetry(emailFunction, emailType = 'email') {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      try {
+        // Execute the email function directly (no connection verification)
+        const result = await emailFunction();
+        
+        if (attempt > 1) {
+          console.log(`✅ ${emailType} sent successfully on attempt ${attempt}`);
+        }
+        
+        return result;
+      } catch (error) {
+        lastError = error;
+        console.warn(`⚠️ ${emailType} attempt ${attempt} failed:`, error.message);
+        
+        // Check if it's a connection timeout error
+        if (this.isConnectionError(error)) {
+          console.log(`🔄 Connection error detected, will retry ${emailType}...`);
+          
+          if (attempt < this.maxRetries) {
+            // Wait before retrying with exponential backoff
+            const delay = this.retryDelay * Math.pow(2, attempt - 1);
+            console.log(`⏳ Retrying ${emailType} in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            
+            // Try to recreate the transporter for connection issues
+            if (attempt === 2) {
+              console.log('🔄 Recreating email transporter...');
+              this.recreateTransporter();
+            }
+          }
+        } else {
+          // Non-connection errors shouldn't be retried
+          console.error(`❌ Non-retryable error for ${emailType}:`, error.message);
+          break;
+        }
+      }
     }
+    
+    throw new Error(`Failed to send ${emailType} after ${this.maxRetries} attempts: ${lastError.message}`);
+  }
+
+
+  /**
+   * Check if error is a connection-related error
+   * @param {Error} error - The error to check
+   * @returns {boolean} True if it's a connection error
+   */
+  isConnectionError(error) {
+    const connectionErrors = [
+      'ETIMEDOUT',
+      'ECONNRESET',
+      'ECONNREFUSED',
+      'ENOTFOUND',
+      'Connection timeout',
+      'Connection closed',
+      'Socket timeout',
+      'SMTP connection failed'
+    ];
+    
+    return connectionErrors.some(errorType => 
+      error.code === errorType || 
+      error.message.includes(errorType) ||
+      error.message.toLowerCase().includes('connection') ||
+      error.message.toLowerCase().includes('timeout')
+    );
+  }
+
+  /**
+   * Recreate the email transporter
+   */
+  recreateTransporter() {
+    try {
+      this.transporter.close();
+    } catch (error) {
+      console.warn('Warning: Error closing transporter:', error.message);
+    }
+    
+    // Use the same production-optimized settings as constructor
+    const isProduction = process.env.NODE_ENV === 'production';
+    const connectionTimeout = isProduction ? 30000 : 60000;
+    const greetingTimeout = isProduction ? 15000 : 30000;
+    const socketTimeout = isProduction ? 30000 : 60000;
+    
+    this.transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST,
+      port: process.env.EMAIL_PORT,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      },
+      // Production-optimized timeout and connection settings
+      connectionTimeout: connectionTimeout,
+      greetingTimeout: greetingTimeout,
+      socketTimeout: socketTimeout,
+      pool: true,
+      maxConnections: isProduction ? 3 : 5,
+      maxMessages: 50,
+      rateDelta: 20000,
+      rateLimit: 3,
+      retryDelay: 3000,
+      retryAttempts: 2,
+      tls: {
+        rejectUnauthorized: false,
+        ciphers: 'SSLv3'
+      },
+      debug: isProduction ? false : true,
+      logger: isProduction ? false : true
+    });
+    
+    console.log('✅ Email transporter recreated successfully');
   }
 
   generateApprovalEmailHTML(post, approvalUrl) {
@@ -264,7 +412,7 @@ Post ID: ${post._id}
   }
 
   async sendNotificationEmail(to, subject, content) {
-    try {
+    return await this.sendEmailWithRetry(async () => {
       const mailOptions = {
         from: `"Instagram Automation" <${process.env.EMAIL_USER}>`,
         to: to,
@@ -279,34 +427,33 @@ Post ID: ${post._id}
         success: true,
         messageId: result.messageId
       };
-    } catch (error) {
-      console.error('Error sending notification email:', error);
-      throw new Error(`Failed to send notification email: ${error.message}`);
-    }
+    }, 'notification email');
   }
 
   async sendJobPostSuccessNotification(post, instagramPostId, selectedJobs, cloudinaryUrl, isManual = false) {
-    const subject = isManual 
-      ? `🎉 Manual Job Post Published Successfully!`
-      : `🎉 Job Post Published Successfully!`;
-    
-    const htmlContent = this.generateJobPostSuccessHTML(post, instagramPostId, selectedJobs, cloudinaryUrl, isManual);
-    const textContent = this.generateJobPostSuccessText(post, instagramPostId, selectedJobs, cloudinaryUrl, isManual);
+    return await this.sendEmailWithRetry(async () => {
+      const subject = isManual 
+        ? `🎉 Manual Job Post Published Successfully!`
+        : `🎉 Job Post Published Successfully!`;
+      
+      const htmlContent = this.generateJobPostSuccessHTML(post, instagramPostId, selectedJobs, cloudinaryUrl, isManual);
+      const textContent = this.generateJobPostSuccessText(post, instagramPostId, selectedJobs, cloudinaryUrl, isManual);
 
-    const mailOptions = {
-      from: `"Instagram Automation" <${process.env.EMAIL_USER}>`,
-      to: this.adminEmail,
-      subject: subject,
-      html: htmlContent,
-      text: textContent
-    };
+      const mailOptions = {
+        from: `"Instagram Automation" <${process.env.EMAIL_USER}>`,
+        to: this.adminEmail,
+        subject: subject,
+        html: htmlContent,
+        text: textContent
+      };
 
-    const result = await this.transporter.sendMail(mailOptions);
-    
-    return {
-      success: true,
-      messageId: result.messageId
-    };
+      const result = await this.transporter.sendMail(mailOptions);
+      
+      return {
+        success: true,
+        messageId: result.messageId
+      };
+    }, 'job post success notification');
   }
 
   generateJobPostSuccessHTML(post, instagramPostId, selectedJobs, cloudinaryUrl, isManual = false) {
@@ -681,51 +828,55 @@ Generated at: ${postedAt} IST
   }
 
   async sendPostSuccessNotification(post) {
-    const subject = `✅ Instagram Post Published Successfully - ${post.topic}`;
-    
-    // Split content for display
-    const [questionPart, solutionPart] = post.content.split('|||SPLIT|||');
-    const question = questionPart ? questionPart.trim() : '';
-    const solution = solutionPart ? solutionPart.trim() : '';
-    
-    const content = `
-      <h2>🎉 Post Published Successfully!</h2>
-      <p><strong>Topic:</strong> ${post.topic}</p>
-      <p><strong>Posted at:</strong> ${new Date(post.postedAt).toLocaleString()}</p>
-      <p><strong>Instagram Post ID:</strong> ${post.instagramPostId}</p>
+    return await this.sendEmailWithRetry(async () => {
+      const subject = `✅ Instagram Post Published Successfully - ${post.topic}`;
       
-      <h3>Question:</h3>
-      <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; white-space: pre-wrap; margin-bottom: 15px;">${question}</div>
+      // Split content for display
+      const [questionPart, solutionPart] = post.content.split('|||SPLIT|||');
+      const question = questionPart ? questionPart.trim() : '';
+      const solution = solutionPart ? solutionPart.trim() : '';
       
-      <h3>Solution:</h3>
-      <div style="background-color: #d4edda; padding: 15px; border-radius: 5px; white-space: pre-wrap;">${solution}</div>
-    `;
+      const content = `
+        <h2>🎉 Post Published Successfully!</h2>
+        <p><strong>Topic:</strong> ${post.topic}</p>
+        <p><strong>Posted at:</strong> ${new Date(post.postedAt).toLocaleString()}</p>
+        <p><strong>Instagram Post ID:</strong> ${post.instagramPostId}</p>
+        
+        <h3>Question:</h3>
+        <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; white-space: pre-wrap; margin-bottom: 15px;">${question}</div>
+        
+        <h3>Solution:</h3>
+        <div style="background-color: #d4edda; padding: 15px; border-radius: 5px; white-space: pre-wrap;">${solution}</div>
+      `;
 
-    return await this.sendNotificationEmail(this.adminEmail, subject, content);
+      return await this.sendNotificationEmail(this.adminEmail, subject, content);
+    }, 'post success notification');
   }
 
   async sendPostFailureNotification(post, errorMessage) {
-    const subject = `❌ Instagram Post Failed - ${post.topic}`;
-    
-    // Split content for display
-    const [questionPart, solutionPart] = post.content.split('|||SPLIT|||');
-    const question = questionPart ? questionPart.trim() : '';
-    const solution = solutionPart ? solutionPart.trim() : '';
-    
-    const content = `
-      <h2>⚠️ Post Publishing Failed</h2>
-      <p><strong>Topic:</strong> ${post.topic}</p>
-      <p><strong>Failed at:</strong> ${new Date().toLocaleString()}</p>
-      <p><strong>Error:</strong> ${errorMessage}</p>
+    return await this.sendEmailWithRetry(async () => {
+      const subject = `❌ Instagram Post Failed - ${post.topic}`;
       
-      <h3>Question:</h3>
-      <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; white-space: pre-wrap; margin-bottom: 15px;">${question}</div>
+      // Split content for display
+      const [questionPart, solutionPart] = post.content.split('|||SPLIT|||');
+      const question = questionPart ? questionPart.trim() : '';
+      const solution = solutionPart ? solutionPart.trim() : '';
       
-      <h3>Solution:</h3>
-      <div style="background-color: #d4edda; padding: 15px; border-radius: 5px; white-space: pre-wrap;">${solution}</div>
-    `;
+      const content = `
+        <h2>⚠️ Post Publishing Failed</h2>
+        <p><strong>Topic:</strong> ${post.topic}</p>
+        <p><strong>Failed at:</strong> ${new Date().toLocaleString()}</p>
+        <p><strong>Error:</strong> ${errorMessage}</p>
+        
+        <h3>Question:</h3>
+        <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; white-space: pre-wrap; margin-bottom: 15px;">${question}</div>
+        
+        <h3>Solution:</h3>
+        <div style="background-color: #d4edda; padding: 15px; border-radius: 5px; white-space: pre-wrap;">${solution}</div>
+      `;
 
-    return await this.sendNotificationEmail(this.adminEmail, subject, content);
+      return await this.sendNotificationEmail(this.adminEmail, subject, content);
+    }, 'post failure notification');
   }
 }
 

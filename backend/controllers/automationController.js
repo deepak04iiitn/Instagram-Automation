@@ -131,11 +131,29 @@ class AutomationController {
       console.log('Creating post record...');
       const post = await this.createPost(generated.topic, generated.content);
       
-      // Step 5: Send approval email
+      // Step 5: Send approval email with fallback handling
       console.log('Sending approval email...');
-      const emailResult = await this.emailService.sendApprovalEmail(post);
+      let emailResult;
+      try {
+        emailResult = await this.emailService.sendApprovalEmail(post);
+        console.log('✅ Approval email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Failed to send approval email:', emailError.message);
+        
+        // Create a fallback email ID for the approval record
+        const fallbackEmailId = `fallback_${Date.now()}`;
+        emailResult = {
+          success: false,
+          emailId: fallbackEmailId,
+          error: emailError.message
+        };
+        
+        // Log the failure but continue with the process
+        console.log('⚠️ Continuing with post creation despite email failure');
+        console.log('📧 Manual approval required - Post ID:', post._id);
+      }
       
-      // Step 6: Create approval record
+      // Step 6: Create approval record (even if email failed)
       await this.createApprovalRecord(post._id, emailResult.emailId);
       
       console.log('Daily automation process completed successfully');
@@ -381,11 +399,28 @@ class AutomationController {
       post.status = 'pending';
       await post.save();
       
-      // Send new approval email
+      // Send new approval email with fallback handling
       console.log('Sending retry approval email...');
-      const emailResult = await this.emailService.sendApprovalEmail(post);
+      let emailResult;
+      try {
+        emailResult = await this.emailService.sendApprovalEmail(post);
+        console.log('✅ Retry approval email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Failed to send retry approval email:', emailError.message);
+        
+        // Create a fallback email ID for the approval record
+        const fallbackEmailId = `retry_fallback_${Date.now()}`;
+        emailResult = {
+          success: false,
+          emailId: fallbackEmailId,
+          error: emailError.message
+        };
+        
+        console.log('⚠️ Continuing with retry despite email failure');
+        console.log('📧 Manual approval required for retry - Post ID:', post._id);
+      }
       
-      // Create new approval record
+      // Create new approval record (even if email failed)
       await this.createApprovalRecord(post._id, emailResult.emailId);
       
       console.log('Post retry handled successfully');
@@ -433,7 +468,7 @@ class AutomationController {
   }
 
   /**
-   * Send error notification
+   * Send error notification with fallback handling
    */
   async sendErrorNotification(error) {
     try {
@@ -448,6 +483,75 @@ class AutomationController {
       await this.emailService.sendNotificationEmail(process.env.ADMIN_EMAIL, subject, content);
     } catch (notificationError) {
       console.error('Failed to send error notification:', notificationError);
+      // Log to console as fallback
+      console.error('=== AUTOMATION ERROR (Email notification failed) ===');
+      console.error('Time:', new Date().toLocaleString());
+      console.error('Error:', error.message);
+      console.error('Stack:', error.stack);
+      console.error('================================================');
+    }
+  }
+
+  /**
+   * Handle email service failures gracefully
+   * @param {Error} emailError - The email error
+   * @param {string} context - Context where the error occurred
+   * @param {Object} post - The post object (if available)
+   */
+  async handleEmailFailure(emailError, context, post = null) {
+    console.error(`❌ Email failure in ${context}:`, emailError.message);
+    
+    // Log detailed error information
+    console.error('Email Error Details:', {
+      code: emailError.code,
+      message: emailError.message,
+      context: context,
+      postId: post?._id,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Try to send error notification (with its own fallback)
+    try {
+      await this.sendErrorNotification(new Error(`Email failure in ${context}: ${emailError.message}`));
+    } catch (notificationError) {
+      console.error('Failed to send email failure notification:', notificationError.message);
+    }
+    
+    // Return a fallback result
+    return {
+      success: false,
+      error: emailError.message,
+      fallback: true,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Get posts that need manual approval (when emails fail)
+   */
+  async getPostsNeedingManualApproval() {
+    try {
+      const posts = await Post.find({
+        status: 'pending',
+        $or: [
+          { 'approvalRecords.emailId': { $regex: /^fallback_/ } },
+          { 'approvalRecords.emailId': { $regex: /^retry_fallback_/ } }
+        ]
+      }).sort({ createdAt: -1 });
+      
+      return posts.map(post => ({
+        _id: post._id,
+        topic: post.topic,
+        content: post.content,
+        status: post.status,
+        createdAt: post.createdAt,
+        retryCount: post.retryCount,
+        maxRetries: post.maxRetries,
+        approvalUrl: `${process.env.APP_URL || 'http://localhost:3000'}/api/approve/${post._id}/manual`
+      }));
+    } catch (error) {
+      console.error('Error getting posts needing manual approval:', error);
+      throw error;
     }
   }
 

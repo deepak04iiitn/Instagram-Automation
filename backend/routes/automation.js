@@ -225,6 +225,74 @@ router.get('/posts/:postId', async (req, res) => {
   }
 });
 
+// Get posts needing manual approval (when emails fail)
+router.get('/posts/manual-approval', async (req, res) => {
+  try {
+    const posts = await automationController.getPostsNeedingManualApproval();
+    res.json({
+      success: true,
+      data: posts,
+      message: posts.length > 0 ? `${posts.length} posts need manual approval` : 'No posts need manual approval'
+    });
+  } catch (error) {
+    console.error('Error getting posts needing manual approval:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get posts needing manual approval',
+      error: error.message
+    });
+  }
+});
+
+// Manual approval endpoint (when emails fail)
+router.get('/approve/:postId/manual', async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const result = await automationController.handlePostApproval(postId, 'manual');
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Manual Post Approval</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+          .success { color: #28a745; font-size: 24px; }
+          .message { margin: 20px 0; }
+          .info { background-color: #e8f4fd; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="success">✅ Post Approved Manually!</div>
+        <div class="message">Your post has been published to Instagram.</div>
+        <div class="info">
+          <p><strong>Note:</strong> This post was approved manually due to email service issues.</p>
+          <p>Post ID: ${postId}</p>
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('Error processing manual approval:', error);
+    res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Manual Approval Failed</title>
+        <style>
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+          .error { color: #dc3545; font-size: 24px; }
+          .message { margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="error">❌ Manual Approval Failed</div>
+        <div class="message">${error.message}</div>
+      </body>
+      </html>
+    `);
+  }
+});
+
 // Cleanup endpoints
 router.post('/cleanup/images', async (req, res) => {
   try {
