@@ -206,7 +206,7 @@ class AutomationController {
   }
 
   /**
-   * Check if post already exists for today
+   * Check if post already exists for today (content type)
    */
   async checkExistingPostToday() {
     const today = moment().startOf('day').toDate();
@@ -216,7 +216,8 @@ class AutomationController {
       generatedAt: {
         $gte: today,
         $lt: tomorrow
-      }
+      },
+      type: { $ne: 'job' } // Only check for content posts, not job posts
     });
   }
 

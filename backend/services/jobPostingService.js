@@ -242,6 +242,7 @@ class JobPostingService {
         const postData = {
           topic: 'QA Job Opportunities',
           content: this.formatJobsForImage(selectedJobs),
+          type: 'job',
           status: 'posted',
           postedAt: new Date(),
           instagramPostId: instagramResult.mediaId,

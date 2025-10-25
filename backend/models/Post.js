@@ -10,6 +10,11 @@ const postSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  type: {
+    type: String,
+    enum: ['content', 'job'],
+    default: 'content'
+  },
   status: {
     type: String,
     enum: ['pending', 'approved', 'declined', 'retry', 'posted', 'failed'],

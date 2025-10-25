@@ -62,8 +62,8 @@ class SchedulerService {
   scheduleDailyAutomation() {
     const jobName = 'daily-automation';
     
-    // Run at 10:00 AM IST every day (4:30 AM UTC)
-    const job = cron.schedule('30 4 * * *', async () => {
+    // Run at 10:00 AM IST every day
+    const job = cron.schedule('0 10 * * *', async () => {
       console.log(`\n=== Daily Automation Started at ${new Date().toLocaleString()} (IST) ===`);
       
       try {
@@ -96,8 +96,8 @@ class SchedulerService {
   scheduleJobPosting() {
     const jobName = 'job-posting';
     
-    // Run at 5:00 PM IST every day (11:30 AM UTC)
-    const job = cron.schedule('30 11 * * *', async () => {
+    // Run at 5:00 PM IST every day
+    const job = cron.schedule('0 17 * * *', async () => {
       console.log(`\n=== Job Posting Started at ${new Date().toLocaleString()} (IST) ===`);
       
       try {
@@ -148,7 +148,7 @@ class SchedulerService {
   scheduleImageCleanup() {
     const jobName = 'image-cleanup';
     
-    const job = cron.schedule('0 20 * * *', async () => {
+    const job = cron.schedule('0 2 * * *', async () => {
       console.log(`\n=== Image Cleanup Started at ${new Date().toLocaleString()} (IST) ===`);
       
       try {
@@ -174,7 +174,7 @@ class SchedulerService {
   schedulePostCleanup() {
     const jobName = 'post-cleanup';
     
-    const job = cron.schedule('0 21 * * 0', async () => {
+    const job = cron.schedule('0 3 * * 0', async () => {
       console.log(`\n=== Post Cleanup Started at ${new Date().toLocaleString()} (IST) ===`);
       
       try {
@@ -200,7 +200,7 @@ class SchedulerService {
   scheduleJobMemoryCleanup() {
     const jobName = 'job-memory-cleanup';
     
-    const job = cron.schedule('0 19 * * *', async () => {
+    const job = cron.schedule('0 1 * * *', async () => {
       console.log(`\n=== Job Memory Cleanup Started at ${new Date().toLocaleString()} (IST) ===`);
       
       try {
