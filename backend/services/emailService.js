@@ -3,43 +3,68 @@ import { v4 as uuidv4 } from 'uuid';
 
 class EmailService {
   constructor() {
+    console.log('📧 Initializing EmailService...');
+    
+    // Try alternative configuration for better reliability
+    const isGmail = process.env.EMAIL_HOST === 'smtp.gmail.com';
+    
+    console.log(`📧 Email configuration:`);
+    console.log(`📧 Host: ${process.env.EMAIL_HOST}:${process.env.EMAIL_PORT}`);
+    console.log(`📧 User: ${process.env.EMAIL_USER}`);
+    console.log(`📧 Admin Email: ${process.env.ADMIN_EMAIL}`);
+    console.log(`📧 Provider: ${isGmail ? 'Gmail' : 'Generic SMTP'}`);
+    console.log(`📧 Secure: ${isGmail ? false : (process.env.EMAIL_PORT == 465)}`);
+    
     this.transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
       port: process.env.EMAIL_PORT,
-      secure: false,
+      secure: isGmail ? false : (process.env.EMAIL_PORT == 465), // Use STARTTLS for Gmail
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
       },
-      // Enhanced timeout and connection settings
-      connectionTimeout: 60000, // 60 seconds
-      greetingTimeout: 30000,   // 30 seconds
-      socketTimeout: 60000,     // 60 seconds
-      pool: false,              // Disable connection pooling for better reliability
+      // Very aggressive timeout settings for faster failure detection
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 5000,    // 5 seconds
+      socketTimeout: 10000,     // 10 seconds
+      pool: false,              // Disable connection pooling
       maxConnections: 1,        // Single connection
       maxMessages: 1,           // One message per connection
-      rateDelta: 20000,         // Rate limiting: 20 seconds
-      rateLimit: 5,             // Maximum 5 messages per rateDelta
-      // Retry configuration
-      retryDelay: 5000,         // 5 seconds between retries
-      retryAttempts: 3,         // Maximum retry attempts
-      // TLS options for better security
+      // TLS options optimized for Gmail
       tls: {
         rejectUnauthorized: false,
-        ciphers: 'SSLv3'
-      }
+        ciphers: isGmail ? 'TLSv1.2' : 'SSLv3'
+      },
+      // Additional Gmail-specific options
+      ...(isGmail && {
+        service: 'gmail',
+        ignoreTLS: false,
+        requireTLS: true
+      })
     });
     
     this.adminEmail = process.env.ADMIN_EMAIL;
     this.appUrl = process.env.APP_URL || 'http://localhost:3000';
-    this.maxRetries = 3;
-    this.retryDelay = 5000; // 5 seconds
+    this.maxRetries = 2; // Reduced from 3 to 2
+    this.retryDelay = 3000; // 3 seconds (reduced from 5)
+    
+    console.log('✅ EmailService initialized successfully');
+    console.log(`📧 Retry settings: maxRetries=${this.maxRetries}, retryDelay=${this.retryDelay}ms`);
+    console.log(`📧 Timeout settings: connection=${10000}ms, greeting=${5000}ms, socket=${10000}ms`);
   }
 
   async sendApprovalEmail(post) {
+    console.log('📧 Starting approval email process...');
+    console.log(`📧 Post ID: ${post._id}`);
+    console.log(`📧 Admin Email: ${this.adminEmail}`);
+    console.log(`📧 SMTP Host: ${process.env.EMAIL_HOST}:${process.env.EMAIL_PORT}`);
+    
     return await this.sendEmailWithRetry(async () => {
       const emailId = uuidv4();
       const approvalUrl = `${this.appUrl}/api/approve/${post._id}/${emailId}`;
+      
+      console.log(`📧 Generated email ID: ${emailId}`);
+      console.log(`📧 Approval URL: ${approvalUrl}`);
       
       const htmlContent = this.generateApprovalEmailHTML(post, approvalUrl);
       
@@ -51,7 +76,27 @@ class EmailService {
         text: this.generateApprovalEmailText(post, approvalUrl)
       };
 
-      const result = await this.transporter.sendMail(mailOptions);
+      console.log('📧 Mail options prepared:');
+      console.log(`📧 From: ${mailOptions.from}`);
+      console.log(`📧 To: ${mailOptions.to}`);
+      console.log(`📧 Subject: ${mailOptions.subject}`);
+      console.log(`📧 Content length: ${htmlContent.length} characters`);
+
+      // Add timeout wrapper for the sendMail operation
+      const sendMailWithTimeout = (options, timeout = 10000) => {
+        console.log(`📧 Attempting to send email with ${timeout}ms timeout...`);
+        return Promise.race([
+          this.transporter.sendMail(options),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Send mail timeout')), timeout)
+          )
+        ]);
+      };
+
+      const result = await sendMailWithTimeout(mailOptions);
+      
+      console.log('✅ Email sent successfully!');
+      console.log(`📧 Message ID: ${result.messageId}`);
       
       return {
         success: true,
@@ -70,44 +115,66 @@ class EmailService {
   async sendEmailWithRetry(emailFunction, emailType = 'email') {
     let lastError;
     
+    console.log(`📧 Starting ${emailType} with ${this.maxRetries} max retries...`);
+    
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      console.log(`📧 ${emailType} attempt ${attempt}/${this.maxRetries} starting...`);
+      
       try {
         // Execute the email function directly without verification
         const result = await emailFunction();
         
         if (attempt > 1) {
           console.log(`✅ ${emailType} sent successfully on attempt ${attempt}`);
+        } else {
+          console.log(`✅ ${emailType} sent successfully on first attempt`);
         }
         
         return result;
       } catch (error) {
         lastError = error;
         console.warn(`⚠️ ${emailType} attempt ${attempt} failed:`, error.message);
+        console.warn(`⚠️ Error code: ${error.code || 'N/A'}`);
+        console.warn(`⚠️ Error type: ${error.constructor.name}`);
         
         // Check if it's a connection timeout error
         if (this.isConnectionError(error)) {
           console.log(`🔄 Connection error detected, will retry ${emailType}...`);
+          console.log(`🔄 Connection error details: ${JSON.stringify({
+            code: error.code,
+            message: error.message,
+            errno: error.errno,
+            syscall: error.syscall
+          })}`);
           
           if (attempt < this.maxRetries) {
+            // Recreate transporter immediately on first retry for connection issues
+            console.log('🔄 Recreating email transporter...');
+            this.recreateTransporter();
+            
             // Wait before retrying with exponential backoff
             const delay = this.retryDelay * Math.pow(2, attempt - 1);
             console.log(`⏳ Retrying ${emailType} in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
-            
-            // Try to recreate the transporter for connection issues
-            if (attempt === 2) {
-              console.log('🔄 Recreating email transporter...');
-              this.recreateTransporter();
-            }
+          } else {
+            console.log(`❌ Max retries (${this.maxRetries}) reached for ${emailType}`);
           }
         } else {
           // Non-connection errors shouldn't be retried
           console.error(`❌ Non-retryable error for ${emailType}:`, error.message);
+          console.error(`❌ Error details: ${JSON.stringify({
+            code: error.code,
+            message: error.message,
+            errno: error.errno,
+            syscall: error.syscall
+          })}`);
           break;
         }
       }
     }
     
+    console.error(`❌ Failed to send ${emailType} after ${this.maxRetries} attempts`);
+    console.error(`❌ Final error: ${lastError.message}`);
     throw new Error(`Failed to send ${emailType} after ${this.maxRetries} attempts: ${lastError.message}`);
   }
 
@@ -137,58 +204,80 @@ class EmailService {
   }
 
   /**
-   * Recreate the email transporter
+   * Recreate the email transporter with alternative configuration
    */
   recreateTransporter() {
+    console.log('🔄 Starting transporter recreation...');
+    
     try {
       if (this.transporter && this.transporter.close) {
+        console.log('🔄 Closing existing transporter...');
         this.transporter.close();
+        console.log('✅ Existing transporter closed');
       }
     } catch (error) {
-      console.warn('Warning: Error closing transporter:', error.message);
+      console.warn('⚠️ Warning: Error closing transporter:', error.message);
     }
+    
+    // Try alternative configuration for better reliability
+    const isGmail = process.env.EMAIL_HOST === 'smtp.gmail.com';
+    
+    console.log(`🔄 Creating new transporter for ${isGmail ? 'Gmail' : 'Generic SMTP'}...`);
+    console.log(`🔄 Host: ${process.env.EMAIL_HOST}:${process.env.EMAIL_PORT}`);
+    console.log(`🔄 User: ${process.env.EMAIL_USER}`);
+    console.log(`🔄 Secure: ${isGmail ? false : (process.env.EMAIL_PORT == 465)}`);
     
     this.transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
       port: process.env.EMAIL_PORT,
-      secure: false,
+      secure: isGmail ? false : (process.env.EMAIL_PORT == 465), // Use STARTTLS for Gmail
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
       },
-      // Enhanced timeout and connection settings
-      connectionTimeout: 60000, // 60 seconds
-      greetingTimeout: 30000,   // 30 seconds
-      socketTimeout: 60000,     // 60 seconds
-      pool: false,              // Disable connection pooling for better reliability
+      // Very aggressive timeout settings for faster failure detection
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 5000,    // 5 seconds
+      socketTimeout: 10000,     // 10 seconds
+      pool: false,              // Disable connection pooling
       maxConnections: 1,        // Single connection
       maxMessages: 1,           // One message per connection
-      rateDelta: 20000,         // Rate limiting: 20 seconds
-      rateLimit: 5,             // Maximum 5 messages per rateDelta
-      // Retry configuration
-      retryDelay: 5000,         // 5 seconds between retries
-      retryAttempts: 3,         // Maximum retry attempts
-      // TLS options for better security
+      // TLS options optimized for Gmail
       tls: {
         rejectUnauthorized: false,
-        ciphers: 'SSLv3'
-      }
+        ciphers: isGmail ? 'TLSv1.2' : 'SSLv3'
+      },
+      // Additional Gmail-specific options
+      ...(isGmail && {
+        service: 'gmail',
+        ignoreTLS: false,
+        requireTLS: true
+      })
     });
     
-    console.log('✅ Email transporter recreated successfully');
+    console.log('✅ Email transporter recreated with optimized settings');
+    console.log(`✅ Timeout settings: connection=${10000}ms, greeting=${5000}ms, socket=${10000}ms`);
+    console.log(`✅ TLS settings: ciphers=${isGmail ? 'TLSv1.2' : 'SSLv3'}, rejectUnauthorized=false`);
+    if (isGmail) {
+      console.log('✅ Gmail-specific settings: service=gmail, requireTLS=true');
+    }
   }
 
   /**
    * Clean up email service resources
    */
   cleanup() {
+    console.log('🧹 Starting email service cleanup...');
     try {
       if (this.transporter && this.transporter.close) {
+        console.log('🧹 Closing email transporter...');
         this.transporter.close();
         console.log('✅ Email service cleaned up successfully');
+      } else {
+        console.log('🧹 No transporter to close');
       }
     } catch (error) {
-      console.warn('Warning: Error during email service cleanup:', error.message);
+      console.warn('⚠️ Warning: Error during email service cleanup:', error.message);
     }
   }
 

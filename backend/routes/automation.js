@@ -10,10 +10,12 @@ router.post('/run', async (req, res) => {
   try {
     const automationController = getAutomationController();
     const result = await automationController.runDailyAutomation();
+    
     res.json({
       success: true,
-      message: 'Automation run completed successfully',
-      data: result
+      message: result.message || 'Automation run completed successfully',
+      data: result,
+      emailStatus: result.emailStatus || 'unknown'
     });
   } catch (error) {
     console.error('Error running automation:', error);
@@ -37,15 +39,19 @@ router.get('/approve/:postId/:emailId/accept', async (req, res) => {
       <head>
         <title>Post Approved</title>
         <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-          .success { color: #28a745; font-size: 24px; }
-          .message { margin: 20px 0; }
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; margin: 0; }
+          .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+          .success { color: #28a745; font-size: 32px; margin-bottom: 20px; }
+          .message { margin: 20px 0; font-size: 18px; color: #333; }
+          .post-id { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 30px; color: #666; font-family: monospace; }
         </style>
       </head>
       <body>
-        <div class="success">✅ Post Approved Successfully!</div>
-        <div class="message">Your post has been published to Instagram.</div>
-        <p>Post ID: ${postId}</p>
+        <div class="container">
+          <div class="success">✅ Post Approved Successfully!</div>
+          <div class="message">Your post has been published to Instagram.</div>
+          <div class="post-id">Post ID: ${postId}</div>
+        </div>
       </body>
       </html>
     `);
@@ -57,14 +63,17 @@ router.get('/approve/:postId/:emailId/accept', async (req, res) => {
       <head>
         <title>Action Failed</title>
         <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-          .error { color: #dc3545; font-size: 24px; }
-          .message { margin: 20px 0; }
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); min-height: 100vh; margin: 0; }
+          .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+          .error { color: #dc3545; font-size: 32px; margin-bottom: 20px; }
+          .message { margin: 20px 0; font-size: 18px; color: #333; }
         </style>
       </head>
       <body>
-        <div class="error">❌ Action Failed</div>
-        <div class="message">${error.message}</div>
+        <div class="container">
+          <div class="error">❌ Action Failed</div>
+          <div class="message">${error.message}</div>
+        </div>
       </body>
       </html>
     `);
@@ -83,15 +92,19 @@ router.get('/approve/:postId/:emailId/decline', async (req, res) => {
       <head>
         <title>Post Declined</title>
         <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-          .info { color: #17a2b8; font-size: 24px; }
-          .message { margin: 20px 0; }
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; margin: 0; }
+          .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+          .info { color: #17a2b8; font-size: 32px; margin-bottom: 20px; }
+          .message { margin: 20px 0; font-size: 18px; color: #333; }
+          .post-id { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 30px; color: #666; font-family: monospace; }
         </style>
       </head>
       <body>
-        <div class="info">ℹ️ Post Declined</div>
-        <div class="message">This post has been declined and will not be published.</div>
-        <p>Post ID: ${postId}</p>
+        <div class="container">
+          <div class="info">ℹ️ Post Declined</div>
+          <div class="message">This post has been declined and will not be published.</div>
+          <div class="post-id">Post ID: ${postId}</div>
+        </div>
       </body>
       </html>
     `);
@@ -103,14 +116,17 @@ router.get('/approve/:postId/:emailId/decline', async (req, res) => {
       <head>
         <title>Action Failed</title>
         <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-          .error { color: #dc3545; font-size: 24px; }
-          .message { margin: 20px 0; }
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); min-height: 100vh; margin: 0; }
+          .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+          .error { color: #dc3545; font-size: 32px; margin-bottom: 20px; }
+          .message { margin: 20px 0; font-size: 18px; color: #333; }
         </style>
       </head>
       <body>
-        <div class="error">❌ Action Failed</div>
-        <div class="message">${error.message}</div>
+        <div class="container">
+          <div class="error">❌ Action Failed</div>
+          <div class="message">${error.message}</div>
+        </div>
       </body>
       </html>
     `);
@@ -129,16 +145,23 @@ router.get('/approve/:postId/:emailId/retry', async (req, res) => {
       <head>
         <title>Post Retry</title>
         <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-          .warning { color: #ffc107; font-size: 24px; }
-          .message { margin: 20px 0; }
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; margin: 0; }
+          .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+          .warning { color: #ffc107; font-size: 32px; margin-bottom: 20px; }
+          .message { margin: 20px 0; font-size: 18px; color: #333; }
+          .info-box { background: #fff3cd; padding: 20px; border-radius: 10px; margin-top: 30px; border-left: 4px solid #ffc107; }
+          .post-id { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 20px; color: #666; font-family: monospace; }
         </style>
       </head>
       <body>
-        <div class="warning">🔄 Post Retry Initiated</div>
-        <div class="message">New content is being generated and a new approval email will be sent.</div>
-        <p>Post ID: ${postId}</p>
-        <p>Retry Count: ${result.retryCount}</p>
+        <div class="container">
+          <div class="warning">🔄 Post Retry Initiated</div>
+          <div class="message">${result.message || 'New content is being generated and a new approval email will be sent.'}</div>
+          <div class="info-box">
+            <strong>Retry Count:</strong> ${result.retryCount}/${result.maxRetries}
+          </div>
+          <div class="post-id">Post ID: ${postId}</div>
+        </div>
       </body>
       </html>
     `);
@@ -150,14 +173,17 @@ router.get('/approve/:postId/:emailId/retry', async (req, res) => {
       <head>
         <title>Action Failed</title>
         <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-          .error { color: #dc3545; font-size: 24px; }
-          .message { margin: 20px 0; }
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); min-height: 100vh; margin: 0; }
+          .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+          .error { color: #dc3545; font-size: 32px; margin-bottom: 20px; }
+          .message { margin: 20px 0; font-size: 18px; color: #333; }
         </style>
       </head>
       <body>
-        <div class="error">❌ Action Failed</div>
-        <div class="message">${error.message}</div>
+        <div class="container">
+          <div class="error">❌ Action Failed</div>
+          <div class="message">${error.message}</div>
+        </div>
       </body>
       </html>
     `);
@@ -265,18 +291,22 @@ router.get('/approve/:postId/manual', async (req, res) => {
       <head>
         <title>Manual Post Approval</title>
         <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-          .success { color: #28a745; font-size: 24px; }
-          .message { margin: 20px 0; }
-          .info { background-color: #e8f4fd; padding: 20px; border-radius: 10px; margin: 20px 0; }
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; margin: 0; }
+          .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+          .success { color: #28a745; font-size: 32px; margin-bottom: 20px; }
+          .message { margin: 20px 0; font-size: 18px; color: #333; }
+          .info { background-color: #e8f4fd; padding: 20px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #17a2b8; }
+          .post-id { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 20px; color: #666; font-family: monospace; }
         </style>
       </head>
       <body>
-        <div class="success">✅ Post Approved Manually!</div>
-        <div class="message">Your post has been published to Instagram.</div>
-        <div class="info">
-          <p><strong>Note:</strong> This post was approved manually due to email service issues.</p>
-          <p>Post ID: ${postId}</p>
+        <div class="container">
+          <div class="success">✅ Post Approved Manually!</div>
+          <div class="message">Your post has been published to Instagram.</div>
+          <div class="info">
+            <p><strong>Note:</strong> This post was approved manually due to email service issues.</p>
+          </div>
+          <div class="post-id">Post ID: ${postId}</div>
         </div>
       </body>
       </html>
@@ -289,14 +319,17 @@ router.get('/approve/:postId/manual', async (req, res) => {
       <head>
         <title>Manual Approval Failed</title>
         <style>
-          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-          .error { color: #dc3545; font-size: 24px; }
-          .message { margin: 20px 0; }
+          body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); min-height: 100vh; margin: 0; }
+          .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
+          .error { color: #dc3545; font-size: 32px; margin-bottom: 20px; }
+          .message { margin: 20px 0; font-size: 18px; color: #333; }
         </style>
       </head>
       <body>
-        <div class="error">❌ Manual Approval Failed</div>
-        <div class="message">${error.message}</div>
+        <div class="container">
+          <div class="error">❌ Manual Approval Failed</div>
+          <div class="message">${error.message}</div>
+        </div>
       </body>
       </html>
     `);
