@@ -280,56 +280,6 @@ class InstagramService {
   }
 
   /**
-   * Upload image file directly to Instagram (fallback method)
-   * @param {string} filePath - Local file path
-   * @param {string} caption - Caption for the post
-   * @returns {Promise<Object>} Post result
-   */
-  async uploadImageFile(filePath, caption) {
-    try {
-      console.log(`Uploading local file to Instagram: ${filePath}`);
-      
-      if (!fs.existsSync(filePath)) {
-        throw new Error(`File does not exist: ${filePath}`);
-      }
-
-      // Create FormData for file upload
-      const form = new FormData();
-      
-      form.append('image', fs.createReadStream(filePath));
-      form.append('caption', caption);
-      form.append('access_token', this.accessToken);
-
-      const response = await axios.post(`${this.baseUrl}/${this.accountId}/media`, form, {
-        headers: {
-          ...form.getHeaders(),
-        },
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
-      });
-
-      const containerId = response.data.id;
-      console.log(`Media container created: ${containerId}`);
-
-      // Wait for container to be ready
-      await this.waitForContainerReady(containerId);
-      
-      // Publish the media
-      const mediaId = await this.publishMedia(containerId);
-      
-      return {
-        success: true,
-        mediaId: mediaId,
-        containerId: containerId,
-        type: 'single_image_file'
-      };
-    } catch (error) {
-      console.error('Error uploading image file to Instagram:', error.response?.data || error.message);
-      throw new Error(`Failed to upload image file: ${error.response?.data?.error?.message || error.message}`);
-    }
-  }
-
-  /**
    * Get account information
    * @returns {Promise<Object>} Account information
    */
