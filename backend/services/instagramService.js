@@ -21,6 +21,17 @@ class InstagramService {
    */
   async createMediaContainer(imageUrl, caption) {
     try {
+      // Validate URL before sending to Instagram API
+      console.log(`Validating single image URL: ${imageUrl}`);
+      
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        throw new Error(`Invalid image URL: ${imageUrl}`);
+      }
+      
+      if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+        throw new Error(`Image URL is not a valid HTTP/HTTPS URL: ${imageUrl}`);
+      }
+
       const response = await axios.post(`${this.baseUrl}/${this.accountId}/media`, {
         image_url: imageUrl,
         caption: caption,
@@ -63,12 +74,28 @@ class InstagramService {
    */
   async createCarouselItemContainers(imageUrls) {
     try {
-      const containerPromises = imageUrls.map(imageUrl => 
-        axios.post(`${this.baseUrl}/${this.accountId}/media`, {
+      // Validate URLs before sending to Instagram API
+      console.log('Validating image URLs for Instagram API...');
+      for (let i = 0; i < imageUrls.length; i++) {
+        const url = imageUrls[i];
+        console.log(`URL ${i + 1}: ${url}`);
+        
+        if (!url || typeof url !== 'string') {
+          throw new Error(`Invalid URL at index ${i}: ${url}`);
+        }
+        
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          throw new Error(`URL at index ${i} is not a valid HTTP/HTTPS URL: ${url}`);
+        }
+      }
+
+      const containerPromises = imageUrls.map((imageUrl, index) => {
+        console.log(`Creating container for URL ${index + 1}: ${imageUrl}`);
+        return axios.post(`${this.baseUrl}/${this.accountId}/media`, {
           image_url: imageUrl,
           access_token: this.accessToken
-        })
-      );
+        });
+      });
 
       const responses = await Promise.all(containerPromises);
       return responses.map(response => response.data.id);
@@ -296,6 +323,30 @@ class InstagramService {
     } catch (error) {
       console.error('Error getting account info:', error.response?.data || error.message);
       throw new Error(`Failed to get account info: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  /**
+   * Test if a URL is accessible and returns an image
+   * @param {string} url - URL to test
+   * @returns {Promise<boolean>} True if accessible
+   */
+  async testUrlAccessibility(url) {
+    try {
+      console.log(`Testing URL accessibility: ${url}`);
+      const response = await axios.head(url, {
+        timeout: 10000,
+        maxRedirects: 5
+      });
+      
+      const contentType = response.headers['content-type'];
+      const isImage = contentType && contentType.startsWith('image/');
+      
+      console.log(`URL test result: ${response.status} - Content-Type: ${contentType} - Is Image: ${isImage}`);
+      return response.status === 200 && isImage;
+    } catch (error) {
+      console.error(`URL accessibility test failed for ${url}:`, error.message);
+      return false;
     }
   }
 }

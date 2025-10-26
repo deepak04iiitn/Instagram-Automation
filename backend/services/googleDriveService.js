@@ -104,11 +104,16 @@ class GoogleDriveService {
       });
 
       console.log(`Upload completed for: ${fileName}`);
+      
+      // Generate direct image URL for Instagram
+      const directImageUrl = `https://drive.google.com/uc?id=${response.data.id}&export=download`;
+      
       return {
         success: true,
         fileId: response.data.id,
         webViewLink: response.data.webViewLink,
         webContentLink: response.data.webContentLink,
+        directImageUrl: directImageUrl,
         fileName: fileName
       };
     } catch (error) {
@@ -180,11 +185,15 @@ class GoogleDriveService {
         }
       });
 
+      // Generate direct image URL for Instagram
+      const directImageUrl = `https://drive.google.com/uc?id=${response.data.id}&export=download`;
+
       return {
         success: true,
         fileId: response.data.id,
         webViewLink: response.data.webViewLink,
         webContentLink: response.data.webContentLink,
+        directImageUrl: directImageUrl,
         fileName: fileName
       };
     } catch (error) {
@@ -340,11 +349,15 @@ class GoogleDriveService {
         }
       });
 
+      // Generate direct image URL for Instagram
+      const directImageUrl = `https://drive.google.com/uc?id=${response.data.id}&export=download`;
+
       return {
         success: true,
         fileId: response.data.id,
         webViewLink: response.data.webViewLink,
         webContentLink: response.data.webContentLink,
+        directImageUrl: directImageUrl,
         fileName: fileName
       };
     } catch (error) {

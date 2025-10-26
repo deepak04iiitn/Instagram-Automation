@@ -331,7 +331,8 @@ class AutomationController {
         cloudinaryId: cloudinaryResults[index].publicId,
         cloudinaryUrl: cloudinaryResults[index].url,
         googleDriveId: driveResults[index].fileId,
-        googleDriveUrl: driveResults[index].webViewLink
+        googleDriveUrl: driveResults[index].webViewLink,
+        googleDriveDirectUrl: driveResults[index].directImageUrl
       }));
       await post.save();
       
@@ -343,15 +344,35 @@ class AutomationController {
       console.log('Posting to Instagram using Cloudinary URLs...');
       const imageUrls = cloudinaryResults.map(result => result.url);
       
+      // Test URL accessibility before posting
+      console.log('Testing Cloudinary URL accessibility...');
+      const urlTests = await Promise.all(imageUrls.map(url => this.instagramService.testUrlAccessibility(url)));
+      const accessibleUrls = imageUrls.filter((url, index) => urlTests[index]);
+      
+      if (accessibleUrls.length !== imageUrls.length) {
+        console.warn(`Only ${accessibleUrls.length}/${imageUrls.length} Cloudinary URLs are accessible`);
+      }
+      
       let instagramResult;
       try {
-        instagramResult = await this.instagramService.postImages(imageUrls, caption);
+        instagramResult = await this.instagramService.postImages(accessibleUrls.length > 0 ? accessibleUrls : imageUrls, caption);
       } catch (error) {
         console.log('Cloudinary URLs failed, trying Google Drive URLs as fallback...');
-        const validDriveResults = driveResults.filter(result => result && result.webContentLink);
+        const validDriveResults = driveResults.filter(result => result && result.directImageUrl);
         if (validDriveResults.length > 0) {
-          const driveUrls = validDriveResults.map(result => result.webContentLink);
-          instagramResult = await this.instagramService.postImages(driveUrls, caption);
+          const driveUrls = validDriveResults.map(result => result.directImageUrl);
+          
+          // Test Google Drive URL accessibility
+          console.log('Testing Google Drive URL accessibility...');
+          const driveUrlTests = await Promise.all(driveUrls.map(url => this.instagramService.testUrlAccessibility(url)));
+          const accessibleDriveUrls = driveUrls.filter((url, index) => driveUrlTests[index]);
+          
+          if (accessibleDriveUrls.length > 0) {
+            instagramResult = await this.instagramService.postImages(accessibleDriveUrls, caption);
+          } else {
+            console.error('No accessible Google Drive URLs available');
+            throw new Error('All image URLs are inaccessible');
+          }
         } else {
           console.error('No valid Google Drive URLs available for fallback');
           throw new Error('Both Cloudinary and Google Drive uploads failed');
