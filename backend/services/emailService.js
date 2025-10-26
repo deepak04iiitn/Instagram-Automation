@@ -23,9 +23,9 @@ class EmailService {
     this.retryDelay = 3000; // 3 seconds
   }
 
-  async sendApprovalEmail(post) {
+  async sendApprovalEmail(post, providedEmailId = null) {
     return await this.sendEmailWithRetry(async () => {
-      const emailId = uuidv4();
+      const emailId = providedEmailId || uuidv4();
       const approvalUrl = `${this.appUrl}/api/approve/${post._id}/${emailId}`;
 
       const htmlContent = this.generateApprovalEmailHTML(post, approvalUrl);

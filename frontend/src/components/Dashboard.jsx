@@ -22,6 +22,7 @@ import StatusCard from './StatusCard';
 import RecentPosts from './RecentPosts';
 import AnalyticsChart from './AnalyticsChart';
 import ControlPanel from './ControlPanel';
+import ApprovalPanel from './ApprovalPanel';
 import LoadingSpinner from './LoadingSpinner';
 import ErrorBoundary from './ErrorBoundary';
 
@@ -32,6 +33,7 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentView, setCurrentView] = useState('dashboard'); // 'dashboard' or 'approval'
 
   const fetchData = async () => {
     try {
@@ -173,6 +175,35 @@ const Dashboard = () => {
 
               {/* Right Section */}
               <div className="flex items-center space-x-2 sm:space-x-4">
+                {/* Navigation Buttons */}
+                <div className="hidden md:flex items-center space-x-2">
+                  <button
+                    onClick={() => setCurrentView('dashboard')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      currentView === 'dashboard'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                    }`}
+                  >
+                    Dashboard
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('approval')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors relative ${
+                      currentView === 'approval'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                    }`}
+                  >
+                    Approvals
+                    {status?.pending > 0 && (
+                      <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center font-bold">
+                        {status.pending}
+                      </span>
+                    )}
+                  </button>
+                </div>
+
                 {/* Last Updated */}
                 <div className="hidden md:flex items-center space-x-2 text-xs sm:text-sm text-gray-400">
                   <Clock className="h-4 w-4" />
@@ -240,69 +271,81 @@ const Dashboard = () => {
 
         {/* Main Content */}
         <main className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 lg:py-10">
-          {/* Welcome Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-6 sm:mb-8"
-          >
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">
-              Welcome back! 👋
-            </h2>
-            <p className="text-sm sm:text-base text-gray-400">
-              Monitor your automation performance and track key metrics in real-time
-            </p>
-          </motion.div>
-
-          {/* Stats Grid */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8"
-          >
-            {statsCards.map((card, index) => (
+          {currentView === 'dashboard' ? (
+            <>
+              {/* Welcome Section */}
               <motion.div
-                key={card.title}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 * index }}
+                className="mb-6 sm:mb-8"
               >
-                <StatusCard {...card} />
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-2">
+                  Welcome back! 👋
+                </h2>
+                <p className="text-sm sm:text-base text-gray-400">
+                  Monitor your automation performance and track key metrics in real-time
+                </p>
               </motion.div>
-            ))}
-          </motion.div>
 
-          {/* Charts & Control Panel Grid */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-8">
-            {/* Analytics Chart - 2 columns on xl screens */}
+              {/* Stats Grid */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8"
+              >
+                {statsCards.map((card, index) => (
+                  <motion.div
+                    key={card.title}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 * index }}
+                  >
+                    <StatusCard {...card} />
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              {/* Charts & Control Panel Grid */}
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-8">
+                {/* Analytics Chart - 2 columns on xl screens */}
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="xl:col-span-2"
+                >
+                  <AnalyticsChart posts={posts} />
+                </motion.div>
+
+                {/* Control Panel - 1 column on xl screens */}
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <ControlPanel onRunAutomation={handleRunAutomation} loading={loading} />
+                </motion.div>
+              </div>
+
+              {/* Recent Posts */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+              >
+                <RecentPosts posts={posts} onRefresh={handleRefresh} />
+              </motion.div>
+            </>
+          ) : (
+            /* Approval Panel */
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="xl:col-span-2"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
             >
-              <AnalyticsChart posts={posts} />
+              <ApprovalPanel />
             </motion.div>
-
-            {/* Control Panel - 1 column on xl screens */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-            >
-              <ControlPanel onRunAutomation={handleRunAutomation} loading={loading} />
-            </motion.div>
-          </div>
-
-          {/* Recent Posts */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <RecentPosts posts={posts} onRefresh={handleRefresh} />
-          </motion.div>
+          )}
         </main>
 
         {/* Mobile Sidebar Overlay */}
@@ -325,7 +368,7 @@ const Dashboard = () => {
               >
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-white">Quick Actions</h3>
+                    <h3 className="text-lg font-bold text-white">Navigation</h3>
                     <button
                       onClick={() => setSidebarOpen(false)}
                       className="p-2 rounded-lg hover:bg-gray-800"
@@ -333,6 +376,42 @@ const Dashboard = () => {
                       <CloseIcon className="h-5 w-5 text-gray-400" />
                     </button>
                   </div>
+                  
+                  {/* Mobile Navigation */}
+                  <div className="mb-6 space-y-2">
+                    <button
+                      onClick={() => {
+                        setCurrentView('dashboard');
+                        setSidebarOpen(false);
+                      }}
+                      className={`w-full px-4 py-3 rounded-lg text-left font-medium transition-colors ${
+                        currentView === 'dashboard'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      }`}
+                    >
+                      Dashboard
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCurrentView('approval');
+                        setSidebarOpen(false);
+                      }}
+                      className={`w-full px-4 py-3 rounded-lg text-left font-medium transition-colors relative ${
+                        currentView === 'approval'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      }`}
+                    >
+                      Approvals
+                      {status?.pending > 0 && (
+                        <span className="absolute top-2 right-2 h-5 w-5 bg-red-500 rounded-full text-xs text-white flex items-center justify-center font-bold">
+                          {status.pending}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                  
                   <ControlPanel onRunAutomation={handleRunAutomation} loading={loading} />
                 </div>
               </motion.div>

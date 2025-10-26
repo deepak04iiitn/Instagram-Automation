@@ -31,8 +31,13 @@ router.post('/run', async (req, res) => {
 router.get('/approve/:postId/:emailId/accept', async (req, res) => {
   try {
     const { postId, emailId } = req.params;
+    console.log(`📧 Email approval clicked: Accept for post ${postId} with emailId ${emailId}`);
+    
     const automationController = getAutomationController();
     const result = await automationController.handlePostApproval(postId, emailId);
+    
+    console.log(`✅ Email approval successful: Post ${postId} published to Instagram`);
+    
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -44,6 +49,8 @@ router.get('/approve/:postId/:emailId/accept', async (req, res) => {
           .success { color: #28a745; font-size: 32px; margin-bottom: 20px; }
           .message { margin: 20px 0; font-size: 18px; color: #333; }
           .post-id { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 30px; color: #666; font-family: monospace; }
+          .instagram-link { margin-top: 20px; }
+          .instagram-link a { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; padding: 12px 24px; text-decoration: none; border-radius: 25px; font-weight: bold; }
         </style>
       </head>
       <body>
@@ -51,12 +58,16 @@ router.get('/approve/:postId/:emailId/accept', async (req, res) => {
           <div class="success">✅ Post Approved Successfully!</div>
           <div class="message">Your post has been published to Instagram.</div>
           <div class="post-id">Post ID: ${postId}</div>
+          <div class="post-id">Instagram Post ID: ${result.instagramPostId || 'N/A'}</div>
+          <div class="instagram-link">
+            <a href="https://instagram.com" target="_blank">View on Instagram</a>
+          </div>
         </div>
       </body>
       </html>
     `);
   } catch (error) {
-    console.error('Error processing approval action:', error);
+    console.error('❌ Error processing email approval action:', error);
     res.status(500).send(`
       <!DOCTYPE html>
       <html>
@@ -67,12 +78,14 @@ router.get('/approve/:postId/:emailId/accept', async (req, res) => {
           .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
           .error { color: #dc3545; font-size: 32px; margin-bottom: 20px; }
           .message { margin: 20px 0; font-size: 18px; color: #333; }
+          .error-details { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 20px; color: #666; font-family: monospace; font-size: 14px; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="error">❌ Action Failed</div>
-          <div class="message">${error.message}</div>
+          <div class="message">There was an error processing your approval request.</div>
+          <div class="error-details">Error: ${error.message}</div>
         </div>
       </body>
       </html>
@@ -84,8 +97,13 @@ router.get('/approve/:postId/:emailId/accept', async (req, res) => {
 router.get('/approve/:postId/:emailId/decline', async (req, res) => {
   try {
     const { postId, emailId } = req.params;
+    console.log(`📧 Email approval clicked: Decline for post ${postId} with emailId ${emailId}`);
+    
     const automationController = getAutomationController();
     await automationController.handlePostDecline(postId, emailId);
+    
+    console.log(`✅ Email decline successful: Post ${postId} declined`);
+    
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -109,7 +127,7 @@ router.get('/approve/:postId/:emailId/decline', async (req, res) => {
       </html>
     `);
   } catch (error) {
-    console.error('Error processing decline action:', error);
+    console.error('❌ Error processing email decline action:', error);
     res.status(500).send(`
       <!DOCTYPE html>
       <html>
@@ -120,12 +138,14 @@ router.get('/approve/:postId/:emailId/decline', async (req, res) => {
           .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
           .error { color: #dc3545; font-size: 32px; margin-bottom: 20px; }
           .message { margin: 20px 0; font-size: 18px; color: #333; }
+          .error-details { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 20px; color: #666; font-family: monospace; font-size: 14px; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="error">❌ Action Failed</div>
-          <div class="message">${error.message}</div>
+          <div class="message">There was an error processing your decline request.</div>
+          <div class="error-details">Error: ${error.message}</div>
         </div>
       </body>
       </html>
@@ -137,8 +157,13 @@ router.get('/approve/:postId/:emailId/decline', async (req, res) => {
 router.get('/approve/:postId/:emailId/retry', async (req, res) => {
   try {
     const { postId, emailId } = req.params;
+    console.log(`📧 Email approval clicked: Retry for post ${postId} with emailId ${emailId}`);
+    
     const automationController = getAutomationController();
     const result = await automationController.handlePostRetry(postId, emailId);
+    
+    console.log(`✅ Email retry successful: Post ${postId} retry initiated`);
+    
     res.send(`
       <!DOCTYPE html>
       <html>
@@ -166,7 +191,7 @@ router.get('/approve/:postId/:emailId/retry', async (req, res) => {
       </html>
     `);
   } catch (error) {
-    console.error('Error processing retry action:', error);
+    console.error('❌ Error processing email retry action:', error);
     res.status(500).send(`
       <!DOCTYPE html>
       <html>
@@ -177,12 +202,14 @@ router.get('/approve/:postId/:emailId/retry', async (req, res) => {
           .container { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
           .error { color: #dc3545; font-size: 32px; margin-bottom: 20px; }
           .message { margin: 20px 0; font-size: 18px; color: #333; }
+          .error-details { background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 20px; color: #666; font-family: monospace; font-size: 14px; }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="error">❌ Action Failed</div>
-          <div class="message">${error.message}</div>
+          <div class="message">There was an error processing your retry request.</div>
+          <div class="error-details">Error: ${error.message}</div>
         </div>
       </body>
       </html>

@@ -76,6 +76,14 @@ export const approvalAPI = {
   
   retryPost: (postId, emailId) => 
     api.get(`/api/approve/${postId}/${emailId}/retry`),
+  
+  // Manual approval (when emails fail)
+  manualApprove: (postId) => 
+    api.get(`/api/approve/${postId}/manual`),
+  
+  // Get posts needing manual approval
+  getPostsNeedingApproval: () => 
+    api.get('/api/posts/manual-approval'),
 };
 
 export default api;

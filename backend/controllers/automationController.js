@@ -175,7 +175,7 @@ class AutomationController {
   async sendApprovalEmailAsync(post, emailId) {
     try {
       console.log(`📧 Sending approval email for post ${post._id} (async)...`);
-      const emailResult = await this.emailService.sendApprovalEmail(post);
+      const emailResult = await this.emailService.sendApprovalEmail(post, emailId);
       
       // Update approval record with success status
       await Approval.findOneAndUpdate(
@@ -255,11 +255,25 @@ class AutomationController {
     try {
       console.log(`Handling post approval for post ${postId}`);
       
-      // Update approval record
-      await Approval.findOneAndUpdate(
-        { postId: postId, emailId: emailId },
-        { action: 'accept', actionTakenAt: new Date() }
-      );
+      // Update approval record (only if it exists, for manual approval we might not have one)
+      if (emailId !== 'manual') {
+        await Approval.findOneAndUpdate(
+          { postId: postId, emailId: emailId },
+          { action: 'accept', actionTakenAt: new Date() }
+        );
+      } else {
+        // For manual approval, create a new approval record
+        await Approval.findOneAndUpdate(
+          { postId: postId },
+          { 
+            action: 'accept', 
+            actionTakenAt: new Date(),
+            emailId: 'manual',
+            adminEmail: process.env.ADMIN_EMAIL || 'admin@example.com'
+          },
+          { upsert: true }
+        );
+      }
       
       // Get post
       const post = await Post.findById(postId);
@@ -386,10 +400,25 @@ class AutomationController {
     try {
       console.log(`Handling post decline for post ${postId}`);
       
-      await Approval.findOneAndUpdate(
-        { postId: postId, emailId: emailId },
-        { action: 'decline', actionTakenAt: new Date() }
-      );
+      // Update approval record (only if it exists, for manual approval we might not have one)
+      if (emailId !== 'manual') {
+        await Approval.findOneAndUpdate(
+          { postId: postId, emailId: emailId },
+          { action: 'decline', actionTakenAt: new Date() }
+        );
+      } else {
+        // For manual approval, create a new approval record
+        await Approval.findOneAndUpdate(
+          { postId: postId },
+          { 
+            action: 'decline', 
+            actionTakenAt: new Date(),
+            emailId: 'manual',
+            adminEmail: process.env.ADMIN_EMAIL || 'admin@example.com'
+          },
+          { upsert: true }
+        );
+      }
       
       await Post.findByIdAndUpdate(postId, {
         status: 'declined'
@@ -411,10 +440,25 @@ class AutomationController {
     try {
       console.log(`Handling post retry for post ${postId}`);
       
-      await Approval.findOneAndUpdate(
-        { postId: postId, emailId: emailId },
-        { action: 'retry', actionTakenAt: new Date() }
-      );
+      // Update approval record (only if it exists, for manual approval we might not have one)
+      if (emailId !== 'manual') {
+        await Approval.findOneAndUpdate(
+          { postId: postId, emailId: emailId },
+          { action: 'retry', actionTakenAt: new Date() }
+        );
+      } else {
+        // For manual approval, create a new approval record
+        await Approval.findOneAndUpdate(
+          { postId: postId },
+          { 
+            action: 'retry', 
+            actionTakenAt: new Date(),
+            emailId: 'manual',
+            adminEmail: process.env.ADMIN_EMAIL || 'admin@example.com'
+          },
+          { upsert: true }
+        );
+      }
       
       const post = await Post.findById(postId);
       if (!post) {
