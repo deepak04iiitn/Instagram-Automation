@@ -11,6 +11,12 @@ class InstagramService {
     if (!this.accessToken || !this.accountId) {
       throw new Error('Instagram access token and account ID are required');
     }
+    
+    // Log configuration (without exposing sensitive data)
+    console.log('Instagram Service initialized:');
+    console.log(`- Account ID: ${this.accountId}`);
+    console.log(`- Access Token: ${this.accessToken ? `${this.accessToken.substring(0, 10)}...` : 'NOT SET'}`);
+    console.log(`- Base URL: ${this.baseUrl}`);
   }
 
   /**
@@ -32,16 +38,37 @@ class InstagramService {
         throw new Error(`Image URL is not a valid HTTP/HTTPS URL: ${imageUrl}`);
       }
 
+      console.log(`Creating single media container for: ${imageUrl}`);
       const response = await axios.post(`${this.baseUrl}/${this.accountId}/media`, {
         image_url: imageUrl,
         caption: caption,
         access_token: this.accessToken
       });
 
+      console.log(`✅ Single media container created successfully: ${response.data.id}`);
       return response.data.id;
     } catch (error) {
-      console.error('Error creating media container:', error.response?.data || error.message);
-      throw new Error(`Failed to create media container: ${error.response?.data?.error?.message || error.message}`);
+      console.error('❌ Error creating media container:');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      
+      if (error.response) {
+        console.error('HTTP Status:', error.response.status);
+        console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
+      }
+      
+      let errorMessage = 'Failed to create media container';
+      if (error.response?.data?.error) {
+        const apiError = error.response.data.error;
+        errorMessage += `: ${apiError.message || 'Unknown API error'}`;
+        if (apiError.code) {
+          errorMessage += ` (Code: ${apiError.code})`;
+        }
+      } else if (error.message) {
+        errorMessage += `: ${error.message}`;
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 
@@ -53,6 +80,9 @@ class InstagramService {
    */
   async createCarouselContainer(imageUrls, caption) {
     try {
+      console.log(`Creating carousel container with ${imageUrls.length} items`);
+      console.log('Container IDs:', imageUrls);
+      
       const response = await axios.post(`${this.baseUrl}/${this.accountId}/media`, {
         media_type: 'CAROUSEL',
         children: imageUrls.join(','),
@@ -60,10 +90,30 @@ class InstagramService {
         access_token: this.accessToken
       });
 
+      console.log(`✅ Carousel container created successfully: ${response.data.id}`);
       return response.data.id;
     } catch (error) {
-      console.error('Error creating carousel container:', error.response?.data || error.message);
-      throw new Error(`Failed to create carousel container: ${error.response?.data?.error?.message || error.message}`);
+      console.error('❌ Error creating carousel container:');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      
+      if (error.response) {
+        console.error('HTTP Status:', error.response.status);
+        console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
+      }
+      
+      let errorMessage = 'Failed to create carousel container';
+      if (error.response?.data?.error) {
+        const apiError = error.response.data.error;
+        errorMessage += `: ${apiError.message || 'Unknown API error'}`;
+        if (apiError.code) {
+          errorMessage += ` (Code: ${apiError.code})`;
+        }
+      } else if (error.message) {
+        errorMessage += `: ${error.message}`;
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 
@@ -89,19 +139,69 @@ class InstagramService {
         }
       }
 
-      const containerPromises = imageUrls.map((imageUrl, index) => {
-        console.log(`Creating container for URL ${index + 1}: ${imageUrl}`);
-        return axios.post(`${this.baseUrl}/${this.accountId}/media`, {
-          image_url: imageUrl,
-          access_token: this.accessToken
-        });
+      console.log(`Creating ${imageUrls.length} carousel item containers...`);
+      const containerPromises = imageUrls.map(async (imageUrl, index) => {
+        try {
+          console.log(`Creating container for URL ${index + 1}: ${imageUrl}`);
+          const response = await axios.post(`${this.baseUrl}/${this.accountId}/media`, {
+            image_url: imageUrl,
+            access_token: this.accessToken
+          });
+          console.log(`✅ Container ${index + 1} created successfully: ${response.data.id}`);
+          return response;
+        } catch (error) {
+          console.error(`❌ Failed to create container ${index + 1} for URL: ${imageUrl}`);
+          console.error(`Error details:`, {
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            message: error.message
+          });
+          throw error;
+        }
       });
 
       const responses = await Promise.all(containerPromises);
-      return responses.map(response => response.data.id);
+      const containerIds = responses.map(response => response.data.id);
+      console.log(`✅ All ${containerIds.length} carousel item containers created successfully`);
+      return containerIds;
     } catch (error) {
-      console.error('Error creating carousel item containers:', error.response?.data || error.message);
-      throw new Error(`Failed to create carousel item containers: ${error.response?.data?.error?.message || error.message}`);
+      console.error('❌ Error creating carousel item containers:');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      if (error.response) {
+        console.error('HTTP Status:', error.response.status);
+        console.error('HTTP Status Text:', error.response.statusText);
+        console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
+        console.error('Response Headers:', error.response.headers);
+      }
+      
+      if (error.request) {
+        console.error('Request details:', {
+          url: error.config?.url,
+          method: error.config?.method,
+          headers: error.config?.headers
+        });
+      }
+      
+      // Provide more specific error messages based on the error type
+      let errorMessage = 'Failed to create carousel item containers';
+      if (error.response?.data?.error) {
+        const apiError = error.response.data.error;
+        errorMessage += `: ${apiError.message || 'Unknown API error'}`;
+        if (apiError.code) {
+          errorMessage += ` (Code: ${apiError.code})`;
+        }
+        if (apiError.error_subcode) {
+          errorMessage += ` (Subcode: ${apiError.error_subcode})`;
+        }
+      } else if (error.message) {
+        errorMessage += `: ${error.message}`;
+      }
+      
+      throw new Error(errorMessage);
     }
   }
 
@@ -323,6 +423,51 @@ class InstagramService {
     } catch (error) {
       console.error('Error getting account info:', error.response?.data || error.message);
       throw new Error(`Failed to get account info: ${error.response?.data?.error?.message || error.message}`);
+    }
+  }
+
+  /**
+   * Test Instagram API connection and validate access token
+   * @returns {Promise<Object>} Connection test result
+   */
+  async testConnection() {
+    try {
+      console.log('Testing Instagram API connection...');
+      
+      // Test account info endpoint
+      const response = await axios.get(`${this.baseUrl}/${this.accountId}`, {
+        params: {
+          fields: 'id,username,account_type',
+          access_token: this.accessToken
+        },
+        timeout: 10000
+      });
+      
+      console.log('✅ Instagram API connection successful');
+      console.log('Account info:', response.data);
+      
+      return {
+        success: true,
+        accountInfo: response.data,
+        message: 'Instagram API connection is working'
+      };
+    } catch (error) {
+      console.error('❌ Instagram API connection failed:');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      
+      if (error.response) {
+        console.error('HTTP Status:', error.response.status);
+        console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
+      }
+      
+      return {
+        success: false,
+        error: error.message,
+        status: error.response?.status,
+        responseData: error.response?.data,
+        message: 'Instagram API connection failed'
+      };
     }
   }
 

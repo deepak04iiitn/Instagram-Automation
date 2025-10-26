@@ -340,6 +340,13 @@ class AutomationController {
       const sanitizedContent = this.geminiService.formatContent(post.content);
       const caption = await this.geminiService.generateCaption('SDET Interview Prep', sanitizedContent);
 
+      // Test Instagram API connection first
+      console.log('Testing Instagram API connection...');
+      const connectionTest = await this.instagramService.testConnection();
+      if (!connectionTest.success) {
+        throw new Error(`Instagram API connection failed: ${connectionTest.message}`);
+      }
+      
       // Post to Instagram using Cloudinary URLs
       console.log('Posting to Instagram using Cloudinary URLs...');
       const imageUrls = cloudinaryResults.map(result => result.url);
