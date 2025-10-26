@@ -8,6 +8,7 @@ import InstagramService from '../services/instagramService.js';
 import JobPostingService from '../services/jobPostingService.js';
 import DatabaseUtils from '../utils/databaseUtils.js';
 import moment from 'moment';
+import fs from 'fs';
 
 class AutomationController {
   constructor() {
@@ -290,12 +291,32 @@ class AutomationController {
       console.log('Generating images...');
       const imagePaths = await this.imageGenerationService.generateImages(post.content, post.topic);
       
+      // Validate generated images
+      console.log(`Generated ${imagePaths.length} images:`, imagePaths);
+      for (const imagePath of imagePaths) {
+        if (!fs.existsSync(imagePath)) {
+          throw new Error(`Generated image file does not exist: ${imagePath}`);
+        }
+        const stats = fs.statSync(imagePath);
+        if (stats.size === 0) {
+          throw new Error(`Generated image file is empty: ${imagePath}`);
+        }
+        console.log(`Image validated: ${imagePath} (${stats.size} bytes)`);
+      }
+      
       // Upload images to Cloudinary (primary) and Google Drive (backup)
       console.log('Uploading images to Cloudinary...');
-      const cloudinaryResults = await this.cloudinaryService.uploadImages(
-        imagePaths, 
-        `instagram-automation/sdet-posts`
-      );
+      let cloudinaryResults = [];
+      try {
+        cloudinaryResults = await this.cloudinaryService.uploadImages(
+          imagePaths, 
+          `instagram-automation/sdet-posts`
+        );
+        console.log(`Successfully uploaded ${cloudinaryResults.length} images to Cloudinary`);
+      } catch (cloudinaryError) {
+        console.error('Cloudinary upload failed:', cloudinaryError.message);
+        throw new Error(`Cloudinary upload failed: ${cloudinaryError.message}`);
+      }
       
       console.log('Uploading images to Google Drive (backup)...');
       let driveResults = [];
@@ -347,14 +368,22 @@ class AutomationController {
       try {
         instagramResult = await this.instagramService.postImages(imageUrls, caption);
       } catch (error) {
-        console.log('Cloudinary URLs failed, trying Google Drive URLs as fallback...');
-        const validDriveResults = driveResults.filter(result => result && result.webContentLink);
-        if (validDriveResults.length > 0) {
-          const driveUrls = validDriveResults.map(result => result.webContentLink);
-          instagramResult = await this.instagramService.postImages(driveUrls, caption);
-        } else {
-          console.error('No valid Google Drive URLs available for fallback');
-          throw new Error('Both Cloudinary and Google Drive uploads failed');
+        console.log('Cloudinary URLs failed, trying local file upload as fallback...');
+        console.log('Error details:', error.message);
+        
+        // Fallback: Upload local files directly to Instagram
+        try {
+          if (imagePaths.length === 1) {
+            instagramResult = await this.instagramService.uploadImageFile(imagePaths[0], caption);
+          } else {
+            // For multiple images, try uploading the first one as single image
+            console.log('Multiple images detected, uploading first image as single post...');
+            instagramResult = await this.instagramService.uploadImageFile(imagePaths[0], caption);
+          }
+          console.log('Local file upload to Instagram successful');
+        } catch (fallbackError) {
+          console.error('Local file upload also failed:', fallbackError.message);
+          throw new Error(`Both Cloudinary URLs and local file upload failed. Cloudinary error: ${error.message}, Local upload error: ${fallbackError.message}`);
         }
       }
       
