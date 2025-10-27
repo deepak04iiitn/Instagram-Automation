@@ -307,9 +307,9 @@ class AutomationController {
             'SDET Posts', 
             post._id.toString()
           );
-          console.log('Google Drive upload completed successfully');
+          console.log('✓ Google Drive backup completed successfully');
         } else {
-          console.log('Google Drive connection failed, skipping backup upload');
+          console.log('⚠️  Skipping Google Drive backup (not configured or unavailable)');
           driveResults = imagePaths.map(() => ({
             fileId: null,
             webViewLink: null,
@@ -317,7 +317,7 @@ class AutomationController {
           }));
         }
       } catch (error) {
-        console.error('Google Drive upload failed:', error.message);
+        console.log('⚠️  Google Drive backup unavailable:', error.message);
         driveResults = imagePaths.map(() => ({
           fileId: null,
           webViewLink: null,

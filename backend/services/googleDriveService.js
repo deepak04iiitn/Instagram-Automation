@@ -10,23 +10,31 @@ class GoogleDriveService {
     this.refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN;
     this.folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
     
-    // Validate required environment variables
-    if (!this.clientId || !this.clientSecret || !this.refreshToken || !this.folderId) {
-      console.warn('Google Drive configuration incomplete. Some environment variables are missing.');
-      console.warn('Required: GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET, GOOGLE_DRIVE_REFRESH_TOKEN, GOOGLE_DRIVE_FOLDER_ID');
+    // Check if Google Drive is configured
+    const isConfigured = this.clientId && this.clientSecret && this.refreshToken && this.folderId;
+    
+    if (!isConfigured) {
+      console.log('ℹ️  Google Drive backup is not configured (optional service)');
+    } else {
+      console.log('✓ Google Drive credentials found');
     }
     
-    this.oauth2Client = new google.auth.OAuth2(
-      this.clientId,
-      this.clientSecret,
-      'urn:ietf:wg:oauth:2.0:oob'
-    );
-    
-    this.oauth2Client.setCredentials({
-      refresh_token: this.refreshToken
-    });
-    
-    this.drive = google.drive({ version: 'v3', auth: this.oauth2Client });
+    if (isConfigured) {
+      this.oauth2Client = new google.auth.OAuth2(
+        this.clientId,
+        this.clientSecret,
+        'urn:ietf:wg:oauth:2.0:oob'
+      );
+      
+      this.oauth2Client.setCredentials({
+        refresh_token: this.refreshToken
+      });
+      
+      this.drive = google.drive({ version: 'v3', auth: this.oauth2Client });
+    } else {
+      this.oauth2Client = null;
+      this.drive = null;
+    }
   }
 
   /**
@@ -35,20 +43,30 @@ class GoogleDriveService {
    */
   async testConnection() {
     try {
+      // Check if credentials are configured
+      if (!this.drive) {
+        return false;
+      }
+
       console.log('Testing Google Drive connection...');
+      
+      // Try to refresh the token
+      await this.oauth2Client.getAccessToken();
+      
       const response = await this.drive.about.get({
         fields: 'user,storageQuota'
       });
-      console.log('Google Drive connection successful');
+      console.log('✓ Google Drive connection successful');
       console.log('User:', response.data.user?.displayName);
-      console.log('Storage quota:', response.data.storageQuota);
       return true;
     } catch (error) {
-      console.error('Google Drive connection failed:', error);
-      console.error('This might be due to:');
-      console.error('1. Invalid refresh token');
-      console.error('2. Missing or incorrect credentials');
-      console.error('3. API not enabled');
+      // Silently handle Google Drive errors as it's a backup service
+      if (error.code === 'invalid_grant' || error.message?.includes('Token has been expired or revoked')) {
+        console.log('⚠️  Google Drive authentication expired - skipping backup upload');
+        console.log('💡 To re-enable Google Drive backup, see GOOGLE_DRIVE_SETUP.md');
+      } else {
+        console.log('⚠️  Google Drive connection failed - skipping backup');
+      }
       return false;
     }
   }
@@ -61,6 +79,11 @@ class GoogleDriveService {
    * @returns {Promise<Object>} Upload result with file ID and URL
    */
   async uploadImage(filePath, topic, postId) {
+    if (!this.drive) {
+      console.log('Google Drive not configured - skipping upload');
+      return { success: false, fileName: path.basename(filePath), fileId: null };
+    }
+    
     try {
       console.log(`Uploading to Google Drive: ${filePath}`);
       
@@ -135,6 +158,11 @@ class GoogleDriveService {
    * @returns {Promise<Array>} Array of upload results
    */
   async uploadImages(filePaths, topic, postId) {
+    if (!this.drive) {
+      console.log('Google Drive not configured - skipping upload');
+      return [];
+    }
+    
     try {
       const uploadPromises = filePaths.map((filePath, index) => {
         const fileName = `${postId}_${index + 1}_${path.basename(filePath)}`;
@@ -157,6 +185,10 @@ class GoogleDriveService {
    * @returns {Promise<Object>} Upload result
    */
   async uploadImageWithCustomName(filePath, fileName, topic) {
+    if (!this.drive) {
+      return { success: false, fileName, fileId: null };
+    }
+    
     try {
       const folderId = await this.getOrCreateTopicFolder(topic);
       
@@ -208,6 +240,10 @@ class GoogleDriveService {
    * @returns {Promise<string>} Folder ID
    */
   async getOrCreateTopicFolder(topic) {
+    if (!this.drive) {
+      throw new Error('Google Drive not configured');
+    }
+    
     try {
       // First, try to find existing folder
       const existingFolder = await this.findFolderByName(topic, this.folderId);
@@ -241,6 +277,10 @@ class GoogleDriveService {
    * @returns {Promise<Object|null>} Folder object or null
    */
   async findFolderByName(folderName, parentId) {
+    if (!this.drive) {
+      return null;
+    }
+    
     try {
       const response = await this.drive.files.list({
         q: `name='${folderName}' and parents in '${parentId}' and mimeType='application/vnd.google-apps.folder'`,
@@ -261,6 +301,10 @@ class GoogleDriveService {
    * @returns {Promise<string>} Daily folder ID
    */
   async createDailyFolder(topic, date = new Date()) {
+    if (!this.drive) {
+      throw new Error('Google Drive not configured');
+    }
+    
     try {
       const topicFolderId = await this.getOrCreateTopicFolder(topic);
       const dateString = moment(date).format('YYYY-MM-DD');
@@ -300,6 +344,11 @@ class GoogleDriveService {
    * @returns {Promise<Array>} Array of upload results
    */
   async uploadImagesToDailyFolder(filePaths, topic, postId, date = new Date()) {
+    if (!this.drive) {
+      console.log('Google Drive not configured - skipping upload');
+      return [];
+    }
+    
     try {
       const dailyFolderId = await this.createDailyFolder(topic, date);
       const uploadPromises = filePaths.map((filePath, index) => {
@@ -323,6 +372,11 @@ class GoogleDriveService {
    * @returns {Promise<Object>} Upload result
    */
   async uploadImageToFolder(filePath, fileName, folderId) {
+    if (!this.drive) {
+      console.log('Google Drive not configured - skipping upload');
+      return { success: false, fileName, fileId: null };
+    }
+    
     try {
       const fileMetadata = {
         name: fileName,
@@ -372,6 +426,11 @@ class GoogleDriveService {
    * @returns {Promise<boolean>} Success status
    */
   async deleteFile(fileId) {
+    if (!this.drive) {
+      console.log('Google Drive not configured - cannot delete file');
+      return false;
+    }
+    
     try {
       await this.drive.files.delete({
         fileId: fileId
@@ -389,6 +448,10 @@ class GoogleDriveService {
    * @returns {Promise<Object>} File information
    */
   async getFileInfo(fileId) {
+    if (!this.drive) {
+      throw new Error('Google Drive not configured');
+    }
+    
     try {
       const response = await this.drive.files.get({
         fileId: fileId,
