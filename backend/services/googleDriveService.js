@@ -26,8 +26,17 @@ class GoogleDriveService {
         'urn:ietf:wg:oauth:2.0:oob'
       );
       
+      // Set credentials with automatic token refresh
       this.oauth2Client.setCredentials({
         refresh_token: this.refreshToken
+      });
+      
+      // Enable automatic token refresh
+      this.oauth2Client.on('tokens', (tokens) => {
+        if (tokens.refresh_token) {
+          // If a new refresh token is issued, we could store it here
+          console.log('✓ Google Drive token refreshed automatically');
+        }
       });
       
       this.drive = google.drive({ version: 'v3', auth: this.oauth2Client });

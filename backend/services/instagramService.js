@@ -414,7 +414,7 @@ class InstagramService {
     try {
       const response = await axios.get(`${this.baseUrl}/${this.accountId}`, {
         params: {
-          fields: 'id,username,account_type,media_count,followers_count,follows_count',
+          fields: 'id,username,media_count',
           access_token: this.accessToken
         }
       });
@@ -437,7 +437,7 @@ class InstagramService {
       // Test account info endpoint
       const response = await axios.get(`${this.baseUrl}/${this.accountId}`, {
         params: {
-          fields: 'id,username,account_type',
+          fields: 'id,username',
           access_token: this.accessToken
         },
         timeout: 10000
